@@ -14,12 +14,15 @@
 
 - Todos los comandos de backend usan el Python del entorno virtual: `backend/venv/Scripts/python.exe` (nunca el `python` del sistema).
 - Ningún endpoint nuevo es público: todos llevan `permission_classes = [IsAuthenticated]`.
-- `precio_total` de una reserva siempre lo calcula el servidor desde `tarifas`; nunca se recibe del cliente.
-- Los pagos (`pagos`) siempre se registran a mano; el sistema nunca calcula ni asume montos cobrados.
+- `precio_total` de una reserva siempre lo calcula el servidor desde `tarifas`; nunca se recibe del cliente. Es un valor de **referencia**, no lo que realmente se cobró.
+- Los pagos (`pagos`: `monto`, `metodo`) siempre se registran a mano por el staff; el sistema nunca calcula ni asume montos cobrados a partir de `precio_total` ni de ninguna otra cosa.
+- El resumen de pagos del día (Tarea 9) suma **todos** los pagos de reservas de esa fecha, **incluyendo los de reservas ya canceladas**. Decisión de negocio confirmada explícitamente: el dinero entró ese día (ej. un adelanto no reembolsable) sin importar qué pase después con la reserva. No restar ni excluir nada por `estado='cancelada'`.
+- Bloqueos de horario sin cliente real (ej. mantenimiento futuro) **no tienen campo ni estado especial**: se registran como cualquier reserva, escribiendo un texto descriptivo como `"Mantenimiento"` en `cliente_nombre`. No crear un flag `es_bloqueo` ni nada similar.
+- Las academias (ej. "Talentos", "Potrillos") se registran igual que cualquier cliente: su nombre va en `cliente_nombre` de la reserva. **No** hay vínculo formal con la tabla `academias` en este plan — eso queda fuera de alcance.
 - 1 clic = 1 hora exacta (`hora_fin = hora_inicio + 1h`). No hay reservas multi-hora en una sola fila todavía.
 - El frontend no agrega dependencias npm nuevas: usa `fetch` nativo.
 - Sin React Router todavía: una sola pantalla interna (`App.jsx` decide Login vs Panel).
-- Sin refresco automático de JWT: `ACCESS_TOKEN_LIFETIME` ya quedó en 18 horas (ver `backend/config/settings.py`).
+- El `ACCESS_TOKEN_LIFETIME` del JWT **ya quedó en 18 horas y ya está commiteado** (commit `6779f17`, en `backend/config/settings.py`) — esto se hizo al cerrar la spec, antes de este plan. No es una tarea pendiente; no hay que tocarlo. Tampoco hay refresco automático de token programado en este plan.
 
 ---
 
@@ -937,6 +940,10 @@ class ReservaSerializer(serializers.ModelSerializer):
 class NuevaReservaSerializer(serializers.Serializer):
     fecha = serializers.DateField()
     hora_inicio = serializers.TimeField()
+    # Texto libre a proposito: ademas de nombres de clientes reales, el
+    # mismo campo se usa para bloqueos sin cliente (ej. "Mantenimiento")
+    # y para academias (ej. "Talentos") - sin campo, estado ni tabla
+    # especial para ninguno de esos dos casos.
     cliente_nombre = serializers.CharField(max_length=150)
     modalidad = serializers.ChoiceField(choices=Modalidad.choices)
     canchas = serializers.ListField(
@@ -1633,6 +1640,10 @@ class ReservaViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['get'], url_path='resumen-pagos')
     def resumen_pagos(self, request):
+        # Suma TODOS los pagos de reservas de esta fecha, incluyendo los
+        # de reservas con estado='cancelada'. Decision de negocio: el
+        # dinero entro ese dia (ej. un adelanto no reembolsable) sin
+        # importar que paso con la reserva despues. No filtrar por estado.
         fecha = request.query_params.get('fecha')
         if not fecha:
             return Response(
@@ -1849,6 +1860,10 @@ class ReservaViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['get'], url_path='resumen-pagos')
     def resumen_pagos(self, request):
+        # Suma TODOS los pagos de reservas de esta fecha, incluyendo los
+        # de reservas con estado='cancelada'. Decision de negocio: el
+        # dinero entro ese dia (ej. un adelanto no reembolsable) sin
+        # importar que paso con la reserva despues. No filtrar por estado.
         fecha = request.query_params.get('fecha')
         if not fecha:
             return Response(
