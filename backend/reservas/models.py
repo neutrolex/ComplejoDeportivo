@@ -126,3 +126,20 @@ class Academia(models.Model):
 
     def __str__(self):
         return self.nombre
+
+
+class ObservacionDia(models.Model):
+    """Texto libre por día (ej. deudas de academias anotadas a mano).
+    Sin ningún cálculo automático — ver spec seccion 2.1."""
+    fecha = models.DateField(unique=True)
+    texto = models.TextField(blank=True, default='')
+    actualizado_en = models.DateTimeField(auto_now=True)
+    actualizado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True,
+    )
+
+    class Meta:
+        db_table = 'observaciones_dia'
+
+    def __str__(self):
+        return f'Observaciones {self.fecha}'
