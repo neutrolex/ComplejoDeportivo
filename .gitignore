@@ -28,3 +28,6 @@ dist/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Worktrees locales (aislamiento de features en desarrollo)
+.worktrees/
