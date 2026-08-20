@@ -91,7 +91,7 @@ REST_FRAMEWORK = {
 # default de la libreria) mientras lo construimos. Antes de produccion
 # conviene acortarlo e implementar refresco automatico en el frontend.
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(hours=8),
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=18),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
 }

@@ -209,9 +209,9 @@ Se agrega Router cuando exista más de una página (web pública, etc.).
   `localStorage` vía `auth.js`.
 - `api.js` agrega `Authorization: Bearer <access>` a cada pedido. Si un
   pedido responde `401`, se borra la sesión guardada y se vuelve a mostrar
-  el login (por ahora sin refresco automático del token — con 8 horas de
-  vida alcanza para un turno completo; se revisa más adelante si hace
-  falta).
+  el login (por ahora sin refresco automático del token — con 18 horas de
+  vida alcanza de sobra para un turno completo, incluso con margen; se
+  revisa más adelante si hace falta acortarlo).
 - Nota de seguridad para tu aprendizaje: guardar el token en `localStorage`
   es simple y suficiente para una herramienta interna, pero es legible por
   cualquier script que corra en la página (riesgo de XSS). Para esta app,
