@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Entornos virtuales
+venv/
+.venv/
+env/
+
+# Variables de entorno / secretos
+.env
+*.env.local
+
+# Django
+backend/staticfiles/
+backend/media/
+db.sqlite3
+
+# Node / React (para cuando exista frontend/)
+node_modules/
+dist/
+.vite/
+
+# Editor / SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
