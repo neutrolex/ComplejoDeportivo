@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
+from datetime import timedelta
 from pathlib import Path
 import environ
 
@@ -49,7 +50,15 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
+    # Apps propias
+    'usuarios',
+    'reservas',
 ]
+
+# Le dice a Django que use nuestro modelo UsuarioInterno en vez del
+# modelo de usuario por defecto (auth.User) para todo el sistema de
+# autenticacion, permisos y el panel de administracion.
+AUTH_USER_MODEL = 'usuarios.UsuarioInterno'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -73,6 +82,18 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
+}
+
+# Duracion de los tokens. El 'access' es el que se manda en cada peticion;
+# el 'refresh' sirve para pedir un 'access' nuevo sin volver a loguearse.
+# Lo dejamos generoso (un turno de trabajo completo) porque el frontend
+# todavia no existe y no queremos forzar re-logins cada 5 minutos (el
+# default de la libreria) mientras lo construimos. Antes de produccion
+# conviene acortarlo e implementar refresco automatico en el frontend.
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=8),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': True,
 }
 
 ROOT_URLCONF = 'config.urls'
