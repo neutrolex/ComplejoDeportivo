@@ -36,25 +36,32 @@ export default function PanelDisponibilidad() {
   const [reservaSeleccionada, setReservaSeleccionada] = useState(null)
 
   useEffect(() => {
+    let vigente = true
     async function cargarDatos() {
       setCargando(true)
       setError('')
+      setReservaSeleccionada(null)
       try {
         const [canchasData, tarifasData, reservasData] = await Promise.all([
           apiFetch('/canchas/'),
           apiFetch('/tarifas/'),
           apiFetch(`/reservas/?fecha=${fecha}`),
         ])
+        if (!vigente) return
         setCanchas(canchasData)
         setTarifas(tarifasData)
         setReservas(reservasData)
       } catch (err) {
+        if (!vigente) return
         setError(err.message)
       } finally {
-        setCargando(false)
+        if (vigente) setCargando(false)
       }
     }
     cargarDatos()
+    return () => {
+      vigente = false
+    }
   }, [fecha])
 
   function reservaEnCelda(canchaId, hora) {
@@ -187,9 +194,9 @@ export default function PanelDisponibilidad() {
         </table>
       )}
 
-      <Observaciones fecha={fecha} />
+      <Observaciones key={`observaciones-${fecha}`} fecha={fecha} />
 
-      <ResumenPagos fecha={fecha} />
+      <ResumenPagos key={`resumen-pagos-${fecha}`} fecha={fecha} />
 
       {reservaSeleccionada && (
         <ReservaDetalle
