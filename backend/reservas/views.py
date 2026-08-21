@@ -1,13 +1,15 @@
 from datetime import datetime, timedelta
+from decimal import Decimal
 
 from django.db import transaction
+from django.db.models import Sum
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.generics import ListAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .models import Cancha, Reserva, ReservaCancha, Tarifa
+from .models import Cancha, Pago, Reserva, ReservaCancha, Tarifa
 from .serializers import (
     CanchaSerializer,
     NuevaReservaSerializer,
@@ -106,3 +108,28 @@ class ReservaViewSet(viewsets.ViewSet):
         entrada.is_valid(raise_exception=True)
         pago = entrada.save(reserva=reserva, registrado_por=request.user)
         return Response(PagoSerializer(pago).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=['get'], url_path='resumen-pagos')
+    def resumen_pagos(self, request):
+        # Suma TODOS los pagos de reservas de esta fecha, incluyendo los
+        # de reservas con estado='cancelada'. Decision de negocio: el
+        # dinero entro ese dia (ej. un adelanto no reembolsable) sin
+        # importar que paso con la reserva despues. No filtrar por estado.
+        fecha = request.query_params.get('fecha')
+        if not fecha:
+            return Response(
+                {'detail': 'Falta el parametro fecha.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        pagos_del_dia = Pago.objects.filter(reserva__fecha=fecha)
+        total_efectivo = pagos_del_dia.filter(
+            metodo=Pago.Metodo.EFECTIVO,
+        ).aggregate(t=Sum('monto'))['t'] or Decimal('0')
+        total_yape = pagos_del_dia.filter(
+            metodo=Pago.Metodo.YAPE,
+        ).aggregate(t=Sum('monto'))['t'] or Decimal('0')
+        return Response({
+            'total_efectivo': str(total_efectivo),
+            'total_yape': str(total_yape),
+            'total_general': str(total_efectivo + total_yape),
+        })
