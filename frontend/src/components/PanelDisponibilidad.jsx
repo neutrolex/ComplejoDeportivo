@@ -60,6 +60,26 @@ export default function PanelDisponibilidad() {
     )
   }
 
+  async function reservarCelda(canchaId, hora) {
+    const cliente = window.prompt('Nombre del cliente para esta hora:')
+    if (!cliente) return
+    try {
+      const nueva = await apiFetch('/reservas/', {
+        method: 'POST',
+        body: JSON.stringify({
+          fecha,
+          hora_inicio: horaTexto(hora),
+          cliente_nombre: cliente,
+          modalidad: 'individual',
+          canchas: [canchaId],
+        }),
+      })
+      setReservas((anteriores) => [...anteriores, nueva])
+    } catch (err) {
+      window.alert(err.message)
+    }
+  }
+
   const horas = calcularHoras(tarifas)
 
   return (
@@ -92,7 +112,16 @@ export default function PanelDisponibilidad() {
                 {canchas.map((c) => {
                   const reserva = reservaEnCelda(c.id, hora)
                   return (
-                    <td key={c.id} style={{ background: reserva ? '#f8b4b4' : '#b4f8c8' }}>
+                    <td
+                      key={c.id}
+                      style={{
+                        background: reserva ? '#f8b4b4' : '#b4f8c8',
+                        cursor: reserva ? 'default' : 'pointer',
+                      }}
+                      onClick={() => {
+                        if (!reserva) reservarCelda(c.id, hora)
+                      }}
+                    >
                       {reserva ? reserva.cliente_nombre : 'Libre'}
                     </td>
                   )
