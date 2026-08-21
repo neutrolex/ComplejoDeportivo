@@ -1,10 +1,19 @@
+from datetime import datetime, timedelta
+
+from django.db import transaction
 from rest_framework import status, viewsets
 from rest_framework.generics import ListAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .models import Cancha, Reserva, Tarifa
-from .serializers import CanchaSerializer, ReservaSerializer, TarifaSerializer
+from .models import Cancha, Reserva, ReservaCancha, Tarifa
+from .serializers import (
+    CanchaSerializer,
+    NuevaReservaSerializer,
+    ReservaSerializer,
+    TarifaSerializer,
+)
+from .servicios import canchas_ocupadas, obtener_tarifa
 
 
 class CanchaListView(ListAPIView):
@@ -35,3 +44,42 @@ class ReservaViewSet(viewsets.ViewSet):
             .prefetch_related('canchas_asignadas', 'pagos')
         )
         return Response(ReservaSerializer(reservas, many=True).data)
+
+    def create(self, request):
+        entrada = NuevaReservaSerializer(data=request.data)
+        entrada.is_valid(raise_exception=True)
+        datos = entrada.validated_data
+
+        tarifa = obtener_tarifa(datos['modalidad'], datos['hora_inicio'])
+        if tarifa is None:
+            return Response(
+                {'detail': 'No hay tarifa configurada para esa modalidad y hora.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        ocupadas = canchas_ocupadas(datos['fecha'], datos['hora_inicio'], datos['canchas'])
+        if ocupadas:
+            return Response(
+                {'detail': f'Las canchas {sorted(ocupadas)} ya estan ocupadas a esa hora.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        inicio_dt = datetime.combine(datos['fecha'], datos['hora_inicio'])
+        hora_fin = (inicio_dt + timedelta(hours=1)).time()
+
+        with transaction.atomic():
+            reserva = Reserva.objects.create(
+                modalidad=datos['modalidad'],
+                cliente_nombre=datos['cliente_nombre'],
+                fecha=datos['fecha'],
+                hora_inicio=datos['hora_inicio'],
+                hora_fin=hora_fin,
+                precio_total=tarifa.precio_por_hora,
+                asignada_por=request.user,
+            )
+            ReservaCancha.objects.bulk_create([
+                ReservaCancha(reserva=reserva, cancha_id=cancha_id)
+                for cancha_id in datos['canchas']
+            ])
+
+        return Response(ReservaSerializer(reserva).data, status=status.HTTP_201_CREATED)

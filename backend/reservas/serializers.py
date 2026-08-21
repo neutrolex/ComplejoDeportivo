@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Cancha, Pago, Reserva, Tarifa
+from .models import Cancha, Modalidad, Pago, Reserva, Tarifa
 
 
 class CanchaSerializer(serializers.ModelSerializer):
@@ -35,3 +35,17 @@ class ReservaSerializer(serializers.ModelSerializer):
 
     def get_canchas(self, reserva):
         return list(reserva.canchas_asignadas.values_list('cancha_id', flat=True))
+
+
+class NuevaReservaSerializer(serializers.Serializer):
+    fecha = serializers.DateField()
+    hora_inicio = serializers.TimeField()
+    # Texto libre a proposito: ademas de nombres de clientes reales, el
+    # mismo campo se usa para bloqueos sin cliente (ej. "Mantenimiento")
+    # y para academias (ej. "Talentos") - sin campo, estado ni tabla
+    # especial para ninguno de esos dos casos.
+    cliente_nombre = serializers.CharField(max_length=150)
+    modalidad = serializers.ChoiceField(choices=Modalidad.choices)
+    canchas = serializers.ListField(
+        child=serializers.IntegerField(), min_length=1, max_length=4,
+    )
