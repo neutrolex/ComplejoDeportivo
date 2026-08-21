@@ -994,6 +994,8 @@ git commit -m "Extrae utilidades de fecha compartidas a utils/fecha.js"
 - Consumes: `GET /api/publico/disponibilidad/?fecha=...` (Tarea 6) → `{"fecha": str, "horas": [{"hora": str, "canchas": {"1": {"estado": str, "academia"?: str|null}, ...}, "campo_completo": {"estado": str, "academia"?: str|null}}]}`. `formatearFecha`, `sumarDias`, `lunesDeLaSemana`, `NOMBRES_DIA` (Tarea 7). `apiFetch` (existente en `frontend/src/api.js`).
 - Produces: `export default function HorariosPublicos()`. Lo consume la Tarea 9 (ruteo).
 
+**Nota de diseño (agregada tras la Tarea 4, con aprobación del usuario):** el usuario compartió un mockup visual de referencia para esta pantalla (navbar con nombre + botón de WhatsApp, hero, tarjeta con selector de semana, leyenda de 3 colores — Libre/Ocupado/Academia como colores distintos, no solo texto sobre el mismo rojo — y tabla en formato grid). El Paso 1 de abajo ya incorpora ese diseño, adaptado a colores hex simples (mismo estilo que ya usa `PanelDisponibilidad.jsx`, ej. `#b4f8c8`) en vez de `oklch()`/Google Fonts del mockup original, para no sumar una dependencia externa de fuentes ni un formato de color nuevo en el proyecto. El nombre del complejo y el número de WhatsApp son datos reales confirmados por el usuario (no placeholders), como constantes al principio del archivo.
+
 - [ ] **Paso 1: Crear el componente**
 
 Crear `frontend/src/components/HorariosPublicos.jsx`:
@@ -1002,6 +1004,48 @@ Crear `frontend/src/components/HorariosPublicos.jsx`:
 import { useEffect, useState } from 'react'
 import { apiFetch } from '../api'
 import { NOMBRES_DIA, formatearFecha, lunesDeLaSemana, sumarDias } from '../utils/fecha'
+
+const NOMBRE_COMPLEJO = 'Complejo Deportivo la 7'
+const WHATSAPP_URL = 'https://wa.me/51981154002'
+const WHATSAPP_TEXTO = '+51 981 154 002'
+
+const COLORES = {
+  libre: { bg: '#DCF7E3', fg: '#1B7A43' },
+  ocupado: { bg: '#FBE0DA', fg: '#B23A17' },
+  academia: { bg: '#FBF0CB', fg: '#8A6D14' },
+}
+
+function estadoDeLaCelda(celda) {
+  if (celda.estado === 'libre') return 'libre'
+  return celda.academia ? 'academia' : 'ocupado'
+}
+
+function textoDeLaCelda(celda) {
+  if (celda.estado === 'libre') return 'Libre'
+  return celda.academia || 'Ocupado'
+}
+
+function celdaEstilo(estado) {
+  return {
+    background: COLORES[estado].bg,
+    color: COLORES[estado].fg,
+    borderRadius: 7,
+    padding: '6px 8px',
+    fontSize: 11.5,
+    fontWeight: 600,
+    textAlign: 'center',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  }
+}
+
+function formatearRangoSemana(lunes) {
+  const domingo = sumarDias(lunes, 6)
+  return `${lunes.slice(8, 10)}/${lunes.slice(5, 7)} - ${domingo.slice(8, 10)}/${domingo.slice(5, 7)}`
+}
+
+const COLUMNAS_GRID = '110px repeat(4, 1fr) 1.3fr'
 
 export default function HorariosPublicos() {
   const [fecha, setFecha] = useState(formatearFecha(new Date()))
@@ -1038,68 +1082,130 @@ export default function HorariosPublicos() {
   })
 
   return (
-    <div>
-      <h2>Horarios disponibles</h2>
-
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16 }}>
-        <button onClick={() => setFecha(sumarDias(fecha, -7))}>◀</button>
-        {diasSemana.map((d) => (
-          <button
-            key={d.fecha}
-            onClick={() => setFecha(d.fecha)}
-            style={{ fontWeight: d.fecha === fecha ? 'bold' : 'normal' }}
-          >
-            {d.nombre} {d.dia}
-          </button>
-        ))}
-        <button onClick={() => setFecha(sumarDias(fecha, 7))}>▶</button>
+    <div style={{ minHeight: '100vh', background: '#FAFAFB', color: '#1F2430', fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 32px', borderBottom: '1px solid #E4E6EA' }}>
+        <div style={{ fontWeight: 700, fontSize: 18 }}>{NOMBRE_COMPLEJO}</div>
+        <a
+          href={WHATSAPP_URL}
+          target="_blank"
+          rel="noreferrer"
+          style={{
+            height: 40, padding: '0 18px', borderRadius: 9, background: '#12946B',
+            color: 'white', fontWeight: 600, fontSize: 13, display: 'flex',
+            alignItems: 'center', textDecoration: 'none',
+          }}
+        >
+          Reservar por WhatsApp
+        </a>
       </div>
 
-      {cargando && <p>Cargando...</p>}
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+      <div style={{ maxWidth: 900, margin: '0 auto', padding: '40px 32px 24px', textAlign: 'center' }}>
+        <h1 style={{ fontSize: 28, fontWeight: 700, margin: '0 0 8px' }}>Encontrá tu horario libre al instante</h1>
+        <p style={{ fontSize: 14, color: '#6B7280', margin: 0 }}>
+          Disponibilidad de nuestras 4 canchas, actualizada por el equipo del complejo.
+        </p>
+      </div>
 
-      {!cargando && !error && disponibilidad && (
-        <table border="1" cellPadding="4">
-          <thead>
-            <tr>
-              <th>Hora</th>
-              <th>Cancha 1</th>
-              <th>Cancha 2</th>
-              <th>Cancha 3</th>
-              <th>Cancha 4</th>
-              <th>Campo completo</th>
-            </tr>
-          </thead>
-          <tbody>
-            {disponibilidad.horas.map((h) => (
-              <tr key={h.hora}>
-                <td>{h.hora}</td>
-                {['1', '2', '3', '4'].map((numero) => (
-                  <td
-                    key={numero}
-                    style={{
-                      background: h.canchas[numero].estado === 'libre' ? '#b4f8c8' : '#f8b4b4',
-                    }}
-                  >
-                    {h.canchas[numero].estado === 'libre'
-                      ? 'Libre'
-                      : h.canchas[numero].academia || 'Ocupado'}
-                  </td>
-                ))}
-                <td
+      <div style={{ maxWidth: 900, margin: '0 auto 48px', padding: '0 32px' }}>
+        <div
+          style={{
+            background: 'white', border: '1px solid #E4E6EA', borderRadius: 16,
+            boxShadow: '0 1px 2px rgba(20,20,30,0.04), 0 8px 24px rgba(20,20,30,0.05)',
+            padding: '24px 24px 8px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+            <button
+              onClick={() => setFecha(sumarDias(fecha, -7))}
+              style={{ width: 34, height: 34, borderRadius: 9, border: '1px solid #D8DADF', background: 'white', fontSize: 15, cursor: 'pointer' }}
+            >
+              ‹
+            </button>
+            <div style={{ fontWeight: 600, fontSize: 14 }}>{formatearRangoSemana(lunes)}</div>
+            <button
+              onClick={() => setFecha(sumarDias(fecha, 7))}
+              style={{ width: 34, height: 34, borderRadius: 9, border: '1px solid #D8DADF', background: 'white', fontSize: 15, cursor: 'pointer' }}
+            >
+              ›
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+            {diasSemana.map((d) => {
+              const seleccionado = d.fecha === fecha
+              return (
+                <button
+                  key={d.fecha}
+                  onClick={() => setFecha(d.fecha)}
                   style={{
-                    background: h.campo_completo.estado === 'libre' ? '#b4f8c8' : '#f8b4b4',
+                    flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
+                    justifyContent: 'center', gap: 3, height: 54, borderRadius: 11,
+                    border: `1px solid ${seleccionado ? '#12946B' : '#D8DADF'}`,
+                    background: seleccionado ? '#12946B' : 'white',
+                    color: seleccionado ? 'white' : '#1F2430',
+                    cursor: 'pointer',
                   }}
                 >
-                  {h.campo_completo.estado === 'libre'
-                    ? 'Libre'
-                    : h.campo_completo.academia || 'Ocupado'}
-                </td>
-              </tr>
+                  <span style={{ fontSize: 11, textTransform: 'uppercase', opacity: 0.75 }}>{d.nombre}</span>
+                  <span style={{ fontSize: 15, fontWeight: 600 }}>{d.dia}</span>
+                </button>
+              )
+            })}
+          </div>
+
+          <div style={{ display: 'flex', gap: 20, marginBottom: 16, flexWrap: 'wrap' }}>
+            {[['libre', 'Libre'], ['ocupado', 'Ocupado'], ['academia', 'Academia']].map(([clave, texto]) => (
+              <div key={clave} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ width: 9, height: 9, borderRadius: '50%', background: COLORES[clave].fg, display: 'inline-block' }} />
+                <span style={{ fontSize: 12, color: '#6B7280' }}>{texto}</span>
+              </div>
             ))}
-          </tbody>
-        </table>
-      )}
+          </div>
+
+          {cargando && <p>Cargando...</p>}
+          {error && <p style={{ color: 'red' }}>{error}</p>}
+
+          {!cargando && !error && disponibilidad && (
+            <div style={{ border: '1px solid #E4E6EA', borderRadius: 12, overflow: 'hidden', marginBottom: 20 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: COLUMNAS_GRID, background: '#F7F8FA', padding: '10px 14px', borderBottom: '1px solid #E4E6EA' }}>
+                <div style={{ fontSize: 11, color: '#6B7280', textTransform: 'uppercase' }}>Hora</div>
+                <div style={{ fontSize: 11, color: '#6B7280', textAlign: 'center' }}>C1</div>
+                <div style={{ fontSize: 11, color: '#6B7280', textAlign: 'center' }}>C2</div>
+                <div style={{ fontSize: 11, color: '#6B7280', textAlign: 'center' }}>C3</div>
+                <div style={{ fontSize: 11, color: '#6B7280', textAlign: 'center' }}>C4</div>
+                <div style={{ fontSize: 11, color: '#6B7280', textAlign: 'center' }}>Campo completo</div>
+              </div>
+              {disponibilidad.horas.map((h) => (
+                <div
+                  key={h.hora}
+                  style={{ display: 'grid', gridTemplateColumns: COLUMNAS_GRID, alignItems: 'center', padding: '8px 14px', borderBottom: '1px solid #EEF0F2' }}
+                >
+                  <div style={{ fontSize: 12.5 }}>{h.hora}</div>
+                  {['1', '2', '3', '4'].map((numero) => (
+                    <div key={numero} style={{ padding: '0 4px' }}>
+                      <div style={celdaEstilo(estadoDeLaCelda(h.canchas[numero]))}>
+                        {textoDeLaCelda(h.canchas[numero])}
+                      </div>
+                    </div>
+                  ))}
+                  <div style={{ padding: '0 4px' }}>
+                    <div style={celdaEstilo(estadoDeLaCelda(h.campo_completo))}>
+                      {textoDeLaCelda(h.campo_completo)}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div style={{ textAlign: 'center', padding: '0 32px 40px' }}>
+        <p style={{ fontSize: 12, color: '#8A8F98', margin: '0 0 4px' }}>
+          Los horarios los actualiza el personal del complejo — pueden variar.
+        </p>
+        <p style={{ fontSize: 12, color: '#8A8F98', margin: 0 }}>WhatsApp: {WHATSAPP_TEXTO}</p>
+      </div>
     </div>
   )
 }
@@ -1192,9 +1298,10 @@ Con backend y frontend corriendo:
 1. Visitar `http://localhost:5173/` sin sesión iniciada: debe verse el login, igual que siempre.
 2. Iniciar sesión: debe verse el panel de siempre, funcionando igual.
 3. Abrir `http://localhost:5173/horarios` en una ventana nueva o de incógnito (sin sesión): debe verse la tabla de disponibilidad pública, sin pedir login.
-4. Desde el panel, crear una reserva para una hora del día que se está viendo en `/horarios` (con academia y sin academia, en canchas distintas) y refrescar `/horarios`: esas horas deben aparecer "Ocupado" (con el nombre de la academia en el caso que corresponda, sin nombre en el caso del cliente casual).
-5. Probar los 7 botones de día y las flechas ◀/▶ en `/horarios`: los botones cambian de día dentro de la semana visible, las flechas mueven la semana completa ±7 días.
-6. Visitar una URL que no exista (ej. `http://localhost:5173/lo-que-sea`): debe redirigir a `/`.
+4. Desde el panel, crear una reserva para una hora del día que se está viendo en `/horarios` (con academia y sin academia, en canchas distintas) y refrescar `/horarios`: la reserva con academia debe verse en el color "Academia" (ámbar) de la leyenda, con el nombre de la academia; la reserva sin academia debe verse en el color "Ocupado" (rojo), sin nombre.
+5. Probar los 7 botones de día y las flechas ‹/› en `/horarios`: los botones cambian de día dentro de la semana visible, las flechas mueven la semana completa ±7 días, y el rango de fechas arriba (ej. "18/08 - 24/08") se actualiza en ambos casos.
+6. Confirmar que el nombre del complejo y el botón "Reservar por WhatsApp" del navbar se ven correctos, y que el botón abre `https://wa.me/51981154002` en una pestaña nueva.
+7. Visitar una URL que no exista (ej. `http://localhost:5173/lo-que-sea`): debe redirigir a `/`.
 
 - [ ] **Paso 5: Commit**
 
