@@ -72,3 +72,25 @@ class CrearReservaApiTest(APITestCase):
         body['cliente_nombre'] = 'Segundo'
         segunda = self.client.post('/api/reservas/', body, format='json')
         self.assertEqual(segunda.status_code, 400)
+
+    def test_individual_con_multiples_canchas_devuelve_400(self):
+        ids = list(Cancha.objects.values_list('id', flat=True))[:2]
+        response = self.client.post('/api/reservas/', {
+            'fecha': '2026-08-20',
+            'hora_inicio': '10:00',
+            'cliente_nombre': 'Prueba',
+            'modalidad': 'individual',
+            'canchas': ids,
+        }, format='json')
+        self.assertEqual(response.status_code, 400)
+
+    def test_completo_sin_las_4_canchas_devuelve_400(self):
+        ids = list(Cancha.objects.values_list('id', flat=True))[:2]
+        response = self.client.post('/api/reservas/', {
+            'fecha': '2026-08-20',
+            'hora_inicio': '19:00',
+            'cliente_nombre': 'Incompleto',
+            'modalidad': 'completo',
+            'canchas': ids,
+        }, format='json')
+        self.assertEqual(response.status_code, 400)

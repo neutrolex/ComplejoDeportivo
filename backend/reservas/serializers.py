@@ -49,3 +49,15 @@ class NuevaReservaSerializer(serializers.Serializer):
     canchas = serializers.ListField(
         child=serializers.IntegerField(), min_length=1, max_length=4,
     )
+
+    def validate(self, datos):
+        cantidad = len(datos['canchas'])
+        if datos['modalidad'] == Modalidad.INDIVIDUAL and cantidad != 1:
+            raise serializers.ValidationError(
+                'Una reserva individual debe tener exactamente 1 cancha.'
+            )
+        if datos['modalidad'] == Modalidad.COMPLETO and cantidad != 4:
+            raise serializers.ValidationError(
+                'Una reserva de campo completo debe tener exactamente 4 canchas.'
+            )
+        return datos
