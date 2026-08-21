@@ -29,8 +29,13 @@ export default function ReservaDetalle({ reserva, onCerrar, onActualizar, onCanc
 
   async function cancelarReserva() {
     if (!window.confirm(`¿Cancelar la reserva de ${reserva.cliente_nombre}?`)) return
-    await apiFetch(`/reservas/${reserva.id}/cancelar/`, { method: 'POST' })
-    onCancelada(reserva.id)
+    setError('')
+    try {
+      await apiFetch(`/reservas/${reserva.id}/cancelar/`, { method: 'POST' })
+      onCancelada(reserva.id)
+    } catch (err) {
+      setError(err.message)
+    }
   }
 
   return (
