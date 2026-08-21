@@ -18,7 +18,7 @@ from .serializers import (
     ReservaSerializer,
     TarifaSerializer,
 )
-from .servicios import canchas_ocupadas, obtener_tarifa
+from .servicios import canchas_ocupadas, fecha_valida, obtener_tarifa
 
 
 class CanchaListView(ListAPIView):
@@ -41,6 +41,11 @@ class ReservaViewSet(viewsets.ViewSet):
         if not fecha:
             return Response(
                 {'detail': 'Falta el parametro fecha.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not fecha_valida(fecha):
+            return Response(
+                {'detail': 'Formato de fecha invalido, use YYYY-MM-DD.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         reservas = (
@@ -127,13 +132,18 @@ class ReservaViewSet(viewsets.ViewSet):
                 {'detail': 'Falta el parametro fecha.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        if not fecha_valida(fecha):
+            return Response(
+                {'detail': 'Formato de fecha invalido, use YYYY-MM-DD.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         pagos_del_dia = Pago.objects.filter(reserva__fecha=fecha)
         total_efectivo = pagos_del_dia.filter(
             metodo=Pago.Metodo.EFECTIVO,
-        ).aggregate(t=Sum('monto'))['t'] or Decimal('0')
+        ).aggregate(t=Sum('monto'))['t'] or Decimal('0.00')
         total_yape = pagos_del_dia.filter(
             metodo=Pago.Metodo.YAPE,
-        ).aggregate(t=Sum('monto'))['t'] or Decimal('0')
+        ).aggregate(t=Sum('monto'))['t'] or Decimal('0.00')
         return Response({
             'total_efectivo': str(total_efectivo),
             'total_yape': str(total_yape),
@@ -145,11 +155,21 @@ class ObservacionDiaView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, fecha):
+        if not fecha_valida(fecha):
+            return Response(
+                {'detail': 'Formato de fecha invalido, use YYYY-MM-DD.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         observacion = ObservacionDia.objects.filter(fecha=fecha).first()
         texto = observacion.texto if observacion else ''
         return Response({'fecha': fecha, 'texto': texto})
 
     def put(self, request, fecha):
+        if not fecha_valida(fecha):
+            return Response(
+                {'detail': 'Formato de fecha invalido, use YYYY-MM-DD.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         texto = request.data.get('texto', '')
         observacion, _ = ObservacionDia.objects.update_or_create(
             fecha=fecha,

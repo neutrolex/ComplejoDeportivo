@@ -1,6 +1,15 @@
-from datetime import time
+from datetime import datetime, time
 
 from .models import Reserva, ReservaCancha, Tarifa
+
+
+def fecha_valida(texto):
+    """Devuelve True si texto tiene formato YYYY-MM-DD valido, False si no."""
+    try:
+        datetime.strptime(texto, '%Y-%m-%d')
+        return True
+    except (ValueError, TypeError):
+        return False
 
 
 def obtener_tarifa(modalidad, hora):

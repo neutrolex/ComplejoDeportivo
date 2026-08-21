@@ -30,6 +30,17 @@ class ResumenPagosApiTest(APITestCase):
         response = self.client.get('/api/reservas/resumen-pagos/')
         self.assertEqual(response.status_code, 400)
 
+    def test_fecha_malformada_devuelve_400(self):
+        response = self.client.get('/api/reservas/resumen-pagos/', {'fecha': 'not-a-date'})
+        self.assertEqual(response.status_code, 400)
+
+    def test_sin_pagos_devuelve_totales_en_0_00(self):
+        response = self.client.get('/api/reservas/resumen-pagos/', {'fecha': '2026-08-20'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['total_efectivo'], '0.00')
+        self.assertEqual(response.data['total_yape'], '0.00')
+        self.assertEqual(response.data['total_general'], '0.00')
+
     def test_suma_efectivo_yape_y_general(self):
         r1 = self._crear_reserva('Juan')
         Pago.objects.create(reserva=r1, tipo='saldo', monto='50.00', metodo='efectivo', registrado_por=self.usuario)

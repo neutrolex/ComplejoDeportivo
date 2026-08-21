@@ -18,6 +18,10 @@ class ListarReservasApiTest(APITestCase):
         response = self.client.get('/api/reservas/')
         self.assertEqual(response.status_code, 400)
 
+    def test_fecha_malformada_devuelve_400(self):
+        response = self.client.get('/api/reservas/', {'fecha': 'not-a-date'})
+        self.assertEqual(response.status_code, 400)
+
     def test_lista_reservas_del_dia_con_sus_canchas(self):
         cancha = Cancha.objects.get(numero=2)
         reserva = Reserva.objects.create(

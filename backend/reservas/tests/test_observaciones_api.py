@@ -17,6 +17,16 @@ class ObservacionDiaApiTest(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['texto'], '')
 
+    def test_get_fecha_malformada_devuelve_400(self):
+        response = self.client.get('/api/observaciones/not-a-date/')
+        self.assertEqual(response.status_code, 400)
+
+    def test_put_fecha_malformada_devuelve_400(self):
+        response = self.client.put(
+            '/api/observaciones/not-a-date/', {'texto': 'x'}, format='json',
+        )
+        self.assertEqual(response.status_code, 400)
+
     def test_put_crea_y_luego_actualiza_la_observacion(self):
         primera = self.client.put(
             '/api/observaciones/2026-08-20/', {'texto': 'Talentos debe 515.00'}, format='json',
