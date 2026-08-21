@@ -1,6 +1,6 @@
 from rest_framework.test import APIClient, APITestCase
 
-from reservas.models import Cancha, Reserva, ReservaCancha
+from reservas.models import Academia, Cancha, Reserva, ReservaCancha
 from usuarios.models import UsuarioInterno
 
 
@@ -115,3 +115,35 @@ class CrearReservaApiTest(APITestCase):
             'canchas': [999999],
         }, format='json')
         self.assertEqual(response.status_code, 400)
+
+    def test_crea_reserva_vinculada_a_una_academia(self):
+        academia = Academia.objects.create(
+            nombre='Talentos FC', horario_uso='Martes', permiso_mostrar=True,
+        )
+        cancha = Cancha.objects.get(numero=1)
+        response = self.client.post('/api/reservas/', {
+            'fecha': '2026-08-20',
+            'hora_inicio': '10:00',
+            'cliente_nombre': 'Talentos FC',
+            'modalidad': 'individual',
+            'canchas': [cancha.id],
+            'academia': academia.id,
+        }, format='json')
+
+        self.assertEqual(response.status_code, 201)
+        reserva = Reserva.objects.get(id=response.data['id'])
+        self.assertEqual(reserva.academia_id, academia.id)
+
+    def test_crea_reserva_sin_academia_queda_sin_vincular(self):
+        cancha = Cancha.objects.get(numero=1)
+        response = self.client.post('/api/reservas/', {
+            'fecha': '2026-08-20',
+            'hora_inicio': '10:00',
+            'cliente_nombre': 'Juan Perez',
+            'modalidad': 'individual',
+            'canchas': [cancha.id],
+        }, format='json')
+
+        self.assertEqual(response.status_code, 201)
+        reserva = Reserva.objects.get(id=response.data['id'])
+        self.assertIsNone(reserva.academia_id)

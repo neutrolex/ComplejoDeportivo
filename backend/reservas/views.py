@@ -97,6 +97,7 @@ class ReservaViewSet(viewsets.ViewSet):
                 hora_inicio=datos['hora_inicio'],
                 hora_fin=hora_fin,
                 precio_total=tarifa.precio_por_hora,
+                academia=datos.get('academia'),
                 asignada_por=request.user,
             )
             ReservaCancha.objects.bulk_create([
