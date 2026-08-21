@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from rest_framework import serializers
 
 from .models import Cancha, Modalidad, Pago, Reserva, Tarifa
@@ -16,6 +18,8 @@ class TarifaSerializer(serializers.ModelSerializer):
 
 
 class PagoSerializer(serializers.ModelSerializer):
+    monto = serializers.DecimalField(max_digits=7, decimal_places=2, min_value=Decimal('0.01'))
+
     class Meta:
         model = Pago
         fields = ['id', 'tipo', 'monto', 'metodo', 'fecha_hora']

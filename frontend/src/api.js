@@ -22,7 +22,8 @@ export async function apiFetch(ruta, opciones = {}) {
 
   if (!respuesta.ok) {
     const cuerpo = await respuesta.json().catch(() => ({}))
-    throw new Error(cuerpo.detail || `Error ${respuesta.status}`)
+    const mensaje = cuerpo.detail || Object.values(cuerpo).flat()[0] || `Error ${respuesta.status}`
+    throw new Error(mensaje)
   }
 
   if (respuesta.status === 204) {

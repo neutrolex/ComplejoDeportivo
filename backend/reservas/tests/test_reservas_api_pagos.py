@@ -42,3 +42,17 @@ class AgregarPagoApiTest(APITestCase):
             'tipo': 'saldo', 'monto': '30.00', 'metodo': 'efectivo',
         }, format='json')
         self.assertEqual(self.reserva.pagos.count(), 2)
+
+    def test_monto_negativo_devuelve_400(self):
+        response = self.client.post(f'/api/reservas/{self.reserva.id}/pagos/', {
+            'tipo': 'adelanto', 'monto': '-10.00', 'metodo': 'efectivo',
+        }, format='json')
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(self.reserva.pagos.count(), 0)
+
+    def test_monto_cero_devuelve_400(self):
+        response = self.client.post(f'/api/reservas/{self.reserva.id}/pagos/', {
+            'tipo': 'adelanto', 'monto': '0', 'metodo': 'efectivo',
+        }, format='json')
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(self.reserva.pagos.count(), 0)

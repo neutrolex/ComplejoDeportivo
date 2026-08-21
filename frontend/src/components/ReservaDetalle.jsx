@@ -60,6 +60,7 @@ export default function ReservaDetalle({ reserva, onCerrar, onActualizar, onCanc
         <input
           type="number"
           step="0.01"
+          min="0.01"
           placeholder="Monto"
           value={monto}
           onChange={(e) => setMonto(e.target.value)}
