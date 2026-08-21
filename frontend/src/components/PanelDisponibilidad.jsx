@@ -80,6 +80,31 @@ export default function PanelDisponibilidad() {
     }
   }
 
+  function reservaCompletaEnHora(hora) {
+    const horaComparar = `${String(hora).padStart(2, '0')}:00:00`
+    return reservas.find((r) => r.modalidad === 'completo' && r.hora_inicio === horaComparar)
+  }
+
+  async function reservarCampoCompleto(hora) {
+    const cliente = window.prompt('Nombre del cliente (campo completo):')
+    if (!cliente) return
+    try {
+      const nueva = await apiFetch('/reservas/', {
+        method: 'POST',
+        body: JSON.stringify({
+          fecha,
+          hora_inicio: horaTexto(hora),
+          cliente_nombre: cliente,
+          modalidad: 'completo',
+          canchas: canchas.map((c) => c.id),
+        }),
+      })
+      setReservas((anteriores) => [...anteriores, nueva])
+    } catch (err) {
+      window.alert(err.message)
+    }
+  }
+
   const horas = calcularHoras(tarifas)
 
   return (
@@ -103,6 +128,7 @@ export default function PanelDisponibilidad() {
               {canchas.map((c) => (
                 <th key={c.id}>Cancha {c.numero}</th>
               ))}
+              <th>Campo completo</th>
             </tr>
           </thead>
           <tbody>
@@ -126,6 +152,23 @@ export default function PanelDisponibilidad() {
                     </td>
                   )
                 })}
+                {(() => {
+                  const completa = reservaCompletaEnHora(hora)
+                  const hayCanchaOcupada = canchas.some((c) => reservaEnCelda(c.id, hora))
+                  return (
+                    <td
+                      style={{
+                        background: completa ? '#f8b4b4' : hayCanchaOcupada ? '#dddddd' : '#b4f8c8',
+                        cursor: completa || hayCanchaOcupada ? 'default' : 'pointer',
+                      }}
+                      onClick={() => {
+                        if (!completa && !hayCanchaOcupada) reservarCampoCompleto(hora)
+                      }}
+                    >
+                      {completa ? completa.cliente_nombre : hayCanchaOcupada ? '-' : 'Reservar todo'}
+                    </td>
+                  )
+                })()}
               </tr>
             ))}
           </tbody>
