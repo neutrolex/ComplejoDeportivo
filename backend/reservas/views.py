@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 
 from django.db import transaction
 from rest_framework import status, viewsets
+from rest_framework.decorators import action
 from rest_framework.generics import ListAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -83,3 +84,13 @@ class ReservaViewSet(viewsets.ViewSet):
             ])
 
         return Response(ReservaSerializer(reserva).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'])
+    def cancelar(self, request, pk=None):
+        try:
+            reserva = Reserva.objects.get(pk=pk)
+        except Reserva.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        reserva.estado = Reserva.Estado.CANCELADA
+        reserva.save(update_fields=['estado'])
+        return Response(ReservaSerializer(reserva).data)
