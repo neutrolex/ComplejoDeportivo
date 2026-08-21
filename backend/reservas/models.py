@@ -53,6 +53,15 @@ class Reserva(models.Model):
     estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.CONFIRMADA)
     precio_total = models.DecimalField(max_digits=7, decimal_places=2)
     creado_en = models.DateTimeField(auto_now_add=True)
+    # Opcional: solo se completa cuando el personal, al crear la reserva,
+    # la vincula a una academia del catalogo (en vez de comparar el texto
+    # libre de cliente_nombre contra academias.nombre, que se rompe con
+    # cualquier typo). SET_NULL: si se borra la academia, la reserva no
+    # se pierde, solo pierde el vinculo.
+    academia = models.ForeignKey(
+        'Academia', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='reservas',
+    )
     # PROTECT: no se puede borrar un usuario interno que tenga reservas a su
     # nombre (para eso está 'activo=False', que lo desactiva sin perder el
     # historial de quién asignó qué).
