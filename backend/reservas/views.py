@@ -8,8 +8,9 @@ from rest_framework.decorators import action
 from rest_framework.generics import ListAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
-from .models import Cancha, Pago, Reserva, ReservaCancha, Tarifa
+from .models import Cancha, ObservacionDia, Pago, Reserva, ReservaCancha, Tarifa
 from .serializers import (
     CanchaSerializer,
     NuevaReservaSerializer,
@@ -133,3 +134,20 @@ class ReservaViewSet(viewsets.ViewSet):
             'total_yape': str(total_yape),
             'total_general': str(total_efectivo + total_yape),
         })
+
+
+class ObservacionDiaView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, fecha):
+        observacion = ObservacionDia.objects.filter(fecha=fecha).first()
+        texto = observacion.texto if observacion else ''
+        return Response({'fecha': fecha, 'texto': texto})
+
+    def put(self, request, fecha):
+        texto = request.data.get('texto', '')
+        observacion, _ = ObservacionDia.objects.update_or_create(
+            fecha=fecha,
+            defaults={'texto': texto, 'actualizado_por': request.user},
+        )
+        return Response({'fecha': fecha, 'texto': observacion.texto})
