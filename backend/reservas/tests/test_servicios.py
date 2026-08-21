@@ -2,8 +2,8 @@ from datetime import time
 
 from django.test import TestCase
 
-from reservas.models import Cancha, Modalidad, Reserva, ReservaCancha
-from reservas.servicios import canchas_ocupadas, obtener_tarifa
+from reservas.models import Academia, Cancha, Modalidad, Reserva, ReservaCancha
+from reservas.servicios import canchas_ocupadas, horas_operativas, nombre_academia_visible, obtener_tarifa
 from usuarios.models import UsuarioInterno
 
 
@@ -51,3 +51,45 @@ class CanchasOcupadasTest(TestCase):
         ids = [self.cancha_1.id, self.cancha_2.id, self.cancha_3.id]
         ocupadas = canchas_ocupadas('2026-08-20', time(18, 0), ids)
         self.assertEqual(ocupadas, set())
+
+
+class HorasOperativasTest(TestCase):
+    def test_va_de_8_a_23(self):
+        self.assertEqual(horas_operativas(), list(range(8, 24)))
+
+
+class NombreAcademiaVisibleTest(TestCase):
+    def setUp(self):
+        self.usuario = UsuarioInterno.objects.create_user(
+            usuario='ana', password='clave123', nombre='Ana',
+        )
+
+    def _crear_reserva(self, academia=None):
+        return Reserva.objects.create(
+            modalidad=Modalidad.INDIVIDUAL,
+            cliente_nombre='Cliente',
+            fecha='2026-08-20',
+            hora_inicio=time(10, 0),
+            hora_fin=time(11, 0),
+            precio_total='50.00',
+            academia=academia,
+            asignada_por=self.usuario,
+        )
+
+    def test_sin_academia_devuelve_none(self):
+        reserva = self._crear_reserva()
+        self.assertIsNone(nombre_academia_visible(reserva))
+
+    def test_academia_con_permiso_devuelve_su_nombre(self):
+        academia = Academia.objects.create(
+            nombre='Talentos FC', horario_uso='Martes', permiso_mostrar=True,
+        )
+        reserva = self._crear_reserva(academia=academia)
+        self.assertEqual(nombre_academia_visible(reserva), 'Talentos FC')
+
+    def test_academia_sin_permiso_devuelve_none(self):
+        academia = Academia.objects.create(
+            nombre='Potrillos', horario_uso='Lunes', permiso_mostrar=False,
+        )
+        reserva = self._crear_reserva(academia=academia)
+        self.assertIsNone(nombre_academia_visible(reserva))

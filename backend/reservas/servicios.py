@@ -42,3 +42,23 @@ def canchas_ocupadas(fecha, hora_inicio, cancha_ids):
         .exclude(reserva__estado=Reserva.Estado.CANCELADA)
         .values_list('cancha_id', flat=True)
     )
+
+
+def horas_operativas():
+    """Horas enteras (8 a 23) durante las que el complejo opera, tomando
+    como referencia la tarifa mas temprana -- mismo criterio que usa el
+    frontend del panel (calcularHoras) para armar la grilla."""
+    primera_tarifa = Tarifa.objects.order_by('hora_inicio').first()
+    if primera_tarifa is None:
+        return []
+    return list(range(primera_tarifa.hora_inicio.hour, 24))
+
+
+def nombre_academia_visible(reserva):
+    """Nombre de la academia vinculada a una reserva, solo si esa academia
+    tiene permiso de mostrarse publicamente. None en cualquier otro caso
+    (cliente casual, bloqueo, academia sin permiso) -- la web publica
+    nunca debe exponer cliente_nombre real."""
+    if reserva.academia_id and reserva.academia.permiso_mostrar:
+        return reserva.academia.nombre
+    return None
