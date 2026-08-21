@@ -11,6 +11,7 @@ from .models import Cancha, Reserva, ReservaCancha, Tarifa
 from .serializers import (
     CanchaSerializer,
     NuevaReservaSerializer,
+    PagoSerializer,
     ReservaSerializer,
     TarifaSerializer,
 )
@@ -94,3 +95,14 @@ class ReservaViewSet(viewsets.ViewSet):
         reserva.estado = Reserva.Estado.CANCELADA
         reserva.save(update_fields=['estado'])
         return Response(ReservaSerializer(reserva).data)
+
+    @action(detail=True, methods=['post'])
+    def pagos(self, request, pk=None):
+        try:
+            reserva = Reserva.objects.get(pk=pk)
+        except Reserva.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        entrada = PagoSerializer(data=request.data)
+        entrada.is_valid(raise_exception=True)
+        pago = entrada.save(reserva=reserva, registrado_por=request.user)
+        return Response(PagoSerializer(pago).data, status=status.HTTP_201_CREATED)
