@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { apiFetch } from '../api'
 import ReservaDetalle from './ReservaDetalle'
+import Observaciones from './Observaciones'
 
 function formatearFecha(fecha) {
   const year = fecha.getFullYear()
@@ -184,6 +185,8 @@ export default function PanelDisponibilidad() {
           </tbody>
         </table>
       )}
+
+      <Observaciones fecha={fecha} />
 
       {reservaSeleccionada && (
         <ReservaDetalle
