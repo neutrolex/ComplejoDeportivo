@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { apiFetch } from '../api'
+import ReservaDetalle from './ReservaDetalle'
 
 function formatearFecha(fecha) {
   const year = fecha.getFullYear()
@@ -30,6 +31,7 @@ export default function PanelDisponibilidad() {
   const [reservas, setReservas] = useState([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
+  const [reservaSeleccionada, setReservaSeleccionada] = useState(null)
 
   useEffect(() => {
     async function cargarDatos() {
@@ -145,7 +147,11 @@ export default function PanelDisponibilidad() {
                         cursor: reserva ? 'default' : 'pointer',
                       }}
                       onClick={() => {
-                        if (!reserva) reservarCelda(c.id, hora)
+                        if (reserva) {
+                          setReservaSeleccionada(reserva)
+                        } else {
+                          reservarCelda(c.id, hora)
+                        }
                       }}
                     >
                       {reserva ? reserva.cliente_nombre : 'Libre'}
@@ -162,7 +168,11 @@ export default function PanelDisponibilidad() {
                         cursor: completa || hayCanchaOcupada ? 'default' : 'pointer',
                       }}
                       onClick={() => {
-                        if (!completa && !hayCanchaOcupada) reservarCampoCompleto(hora)
+                        if (completa) {
+                          setReservaSeleccionada(completa)
+                        } else if (!hayCanchaOcupada) {
+                          reservarCampoCompleto(hora)
+                        }
                       }}
                     >
                       {completa ? completa.cliente_nombre : hayCanchaOcupada ? '-' : 'Reservar todo'}
@@ -173,6 +183,23 @@ export default function PanelDisponibilidad() {
             ))}
           </tbody>
         </table>
+      )}
+
+      {reservaSeleccionada && (
+        <ReservaDetalle
+          reserva={reservaSeleccionada}
+          onCerrar={() => setReservaSeleccionada(null)}
+          onActualizar={(actualizada) => {
+            setReservas((anteriores) =>
+              anteriores.map((r) => (r.id === actualizada.id ? actualizada : r)),
+            )
+            setReservaSeleccionada(actualizada)
+          }}
+          onCancelada={(id) => {
+            setReservas((anteriores) => anteriores.filter((r) => r.id !== id))
+            setReservaSeleccionada(null)
+          }}
+        />
       )}
     </div>
   )
