@@ -32,7 +32,7 @@ Al terminar la Tarea 6 avisar al usuario de que el endpoint público ya está li
 
 ---
 
-### Tarea 1: Modelo — campo `academia` en `Reserva`
+### Task 1: Modelo — campo `academia` en `Reserva`
 
 **Files:**
 - Modify: `backend/reservas/models.py`
@@ -147,7 +147,7 @@ git commit -m "Vincula reservas con academias mediante un campo opcional academi
 
 ---
 
-### Tarea 2: Backend — endpoint `GET /api/academias/`
+### Task 2: Backend — endpoint `GET /api/academias/`
 
 **Files:**
 - Modify: `backend/reservas/serializers.py`
@@ -302,7 +302,7 @@ git commit -m "Agrega GET /api/academias/ para poblar el selector del panel"
 
 ---
 
-### Tarea 3: Backend — `POST /api/reservas/` acepta `academia` opcional
+### Task 3: Backend — `POST /api/reservas/` acepta `academia` opcional
 
 **Files:**
 - Modify: `backend/reservas/serializers.py`
@@ -394,7 +394,7 @@ git commit -m "Permite vincular una academia opcional al crear una reserva"
 
 ---
 
-### Tarea 4: Frontend — selector de academia en el panel
+### Task 4: Frontend — selector de academia en el panel
 
 **Files:**
 - Modify: `frontend/src/components/PanelDisponibilidad.jsx`
@@ -471,7 +471,7 @@ git commit -m "Agrega selector opcional de academia al crear una reserva en el p
 
 ---
 
-### Tarea 5: Backend — helpers `horas_operativas()` y `nombre_academia_visible()`
+### Task 5: Backend — helpers `horas_operativas()` y `nombre_academia_visible()`
 
 **Files:**
 - Modify: `backend/reservas/servicios.py`
@@ -600,7 +600,7 @@ git commit -m "Agrega helpers horas_operativas y nombre_academia_visible para la
 
 ---
 
-### Tarea 6: Backend — endpoint `GET /api/publico/disponibilidad/`
+### Task 6: Backend — endpoint `GET /api/publico/disponibilidad/`
 
 **Files:**
 - Modify: `backend/reservas/views.py`
@@ -902,7 +902,7 @@ git commit -m "Agrega GET /api/publico/disponibilidad/ sin login para la web pub
 
 ---
 
-### Tarea 7: Frontend — utils/fecha.js compartido
+### Task 7: Frontend — utils/fecha.js compartido
 
 **Files:**
 - Create: `frontend/src/utils/fecha.js`
@@ -985,7 +985,7 @@ git commit -m "Extrae utilidades de fecha compartidas a utils/fecha.js"
 
 ---
 
-### Tarea 8: Frontend — componente `HorariosPublicos.jsx`
+### Task 8: Frontend — componente `HorariosPublicos.jsx`
 
 **Files:**
 - Create: `frontend/src/components/HorariosPublicos.jsx`
@@ -1121,7 +1121,7 @@ git commit -m "Agrega el componente de solo lectura HorariosPublicos"
 
 ---
 
-### Tarea 9: Frontend — `react-router-dom` y rutas en `App.jsx`
+### Task 9: Frontend — `react-router-dom` y rutas en `App.jsx`
 
 **Files:**
 - Modify: `frontend/package.json` (vía `npm install`)
