@@ -1,15 +1,9 @@
 import { useEffect, useState } from 'react'
 import { apiFetch } from '../api'
+import { formatearFecha } from '../utils/fecha'
 import ReservaDetalle from './ReservaDetalle'
 import Observaciones from './Observaciones'
 import ResumenPagos from './ResumenPagos'
-
-function formatearFecha(fecha) {
-  const year = fecha.getFullYear()
-  const month = String(fecha.getMonth() + 1).padStart(2, '0')
-  const day = String(fecha.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
 
 function calcularHoras(tarifas) {
   if (tarifas.length === 0) return []
