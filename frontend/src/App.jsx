@@ -1,5 +1,6 @@
 import { AuthProvider, useAuth } from './context/AuthContext'
 import Login from './components/Login'
+import PanelDisponibilidad from './components/PanelDisponibilidad'
 
 function Contenido() {
   const { autenticado, cerrarSesion } = useAuth()
@@ -11,7 +12,7 @@ function Contenido() {
   return (
     <div>
       <button onClick={cerrarSesion}>Cerrar sesion</button>
-      <p>Sesion iniciada. El panel de disponibilidad se agrega en la Tarea 13.</p>
+      <PanelDisponibilidad />
     </div>
   )
 }
