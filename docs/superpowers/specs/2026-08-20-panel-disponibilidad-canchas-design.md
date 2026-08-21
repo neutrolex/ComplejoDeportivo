@@ -165,9 +165,12 @@ tabla `pagos`). `registrado_por = request.user`, `fecha_hora` automática.
 Response: `201` con el pago creado.
 
 ### 3.7 `GET /api/reservas/resumen-pagos/?fecha=YYYY-MM-DD`
-Suma **todos** los pagos de reservas de ese día, sin importar si la reserva
-terminó cancelada (un adelanto cobrado no se devuelve solo porque la
-reserva se cancele después — así se confirmó explícitamente).
+Suma **todos** los pagos registrados ese día (agrupa por `pagos.fecha_hora`,
+**no** por la fecha de la reserva) — un adelanto cobrado hoy para una
+reserva de otro día cuenta en el total de hoy, porque es la plata que
+entró físicamente a la caja hoy. Incluye pagos de reservas que terminaron
+canceladas (un adelanto cobrado no se devuelve solo porque la reserva se
+cancele después — así se confirmó explícitamente).
 
 Response: `{"total_efectivo": "320.00", "total_yape": "150.00", "total_general": "470.00"}`
 

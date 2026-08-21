@@ -122,10 +122,13 @@ class ReservaViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['get'], url_path='resumen-pagos')
     def resumen_pagos(self, request):
-        # Suma TODOS los pagos de reservas de esta fecha, incluyendo los
-        # de reservas con estado='cancelada'. Decision de negocio: el
-        # dinero entro ese dia (ej. un adelanto no reembolsable) sin
-        # importar que paso con la reserva despues. No filtrar por estado.
+        # Agrupa por la fecha en que se registro el PAGO (fecha_hora), no
+        # por la fecha de la reserva: si hoy se cobra un adelanto para una
+        # reserva del sabado, esa plata entro a la caja hoy y debe cuadrar
+        # con el total de hoy, sin importar para que reserva sea.
+        # Ademas suma TODOS los pagos, incluyendo los de reservas con
+        # estado='cancelada' -- un adelanto no reembolsable sigue siendo
+        # plata que entro ese dia. No filtrar por estado.
         fecha = request.query_params.get('fecha')
         if not fecha:
             return Response(
@@ -137,7 +140,7 @@ class ReservaViewSet(viewsets.ViewSet):
                 {'detail': 'Formato de fecha invalido, use YYYY-MM-DD.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        pagos_del_dia = Pago.objects.filter(reserva__fecha=fecha)
+        pagos_del_dia = Pago.objects.filter(fecha_hora__date=fecha)
         total_efectivo = pagos_del_dia.filter(
             metodo=Pago.Metodo.EFECTIVO,
         ).aggregate(t=Sum('monto'))['t'] or Decimal('0.00')
