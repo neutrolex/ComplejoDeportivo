@@ -10,8 +10,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Cancha, ObservacionDia, Pago, Reserva, ReservaCancha, Tarifa
+from .models import Academia, Cancha, ObservacionDia, Pago, Reserva, ReservaCancha, Tarifa
 from .serializers import (
+    AcademiaSerializer,
     CanchaSerializer,
     NuevaReservaSerializer,
     PagoSerializer,
@@ -19,6 +20,12 @@ from .serializers import (
     TarifaSerializer,
 )
 from .servicios import canchas_ocupadas, fecha_valida, obtener_tarifa
+
+
+class AcademiaListView(ListAPIView):
+    queryset = Academia.objects.all()
+    serializer_class = AcademiaSerializer
+    permission_classes = [IsAuthenticated]
 
 
 class CanchaListView(ListAPIView):

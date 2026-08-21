@@ -2,7 +2,13 @@ from decimal import Decimal
 
 from rest_framework import serializers
 
-from .models import Cancha, Modalidad, Pago, Reserva, Tarifa
+from .models import Academia, Cancha, Modalidad, Pago, Reserva, Tarifa
+
+
+class AcademiaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Academia
+        fields = ['id', 'nombre']
 
 
 class CanchaSerializer(serializers.ModelSerializer):
