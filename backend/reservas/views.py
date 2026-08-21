@@ -54,6 +54,11 @@ class ReservaViewSet(viewsets.ViewSet):
         entrada = NuevaReservaSerializer(data=request.data)
         entrada.is_valid(raise_exception=True)
         datos = entrada.validated_data
+        # validate_canchas() en el serializer devuelve instancias de Cancha
+        # (via PrimaryKeyRelatedField), no ids sueltos: se resuelven a ids
+        # una sola vez aqui para usarlos tanto en canchas_ocupadas() como
+        # en el bulk_create de abajo.
+        cancha_ids = [cancha.id for cancha in datos['canchas']]
 
         tarifa = obtener_tarifa(datos['modalidad'], datos['hora_inicio'])
         if tarifa is None:
@@ -62,7 +67,7 @@ class ReservaViewSet(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        ocupadas = canchas_ocupadas(datos['fecha'], datos['hora_inicio'], datos['canchas'])
+        ocupadas = canchas_ocupadas(datos['fecha'], datos['hora_inicio'], cancha_ids)
         if ocupadas:
             return Response(
                 {'detail': f'Las canchas {sorted(ocupadas)} ya estan ocupadas a esa hora.'},
@@ -84,7 +89,7 @@ class ReservaViewSet(viewsets.ViewSet):
             )
             ReservaCancha.objects.bulk_create([
                 ReservaCancha(reserva=reserva, cancha_id=cancha_id)
-                for cancha_id in datos['canchas']
+                for cancha_id in cancha_ids
             ])
 
         return Response(ReservaSerializer(reserva).data, status=status.HTTP_201_CREATED)

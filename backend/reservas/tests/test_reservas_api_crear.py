@@ -94,3 +94,24 @@ class CrearReservaApiTest(APITestCase):
             'canchas': ids,
         }, format='json')
         self.assertEqual(response.status_code, 400)
+
+    def test_cancha_repetida_devuelve_400(self):
+        cancha = Cancha.objects.get(numero=1)
+        response = self.client.post('/api/reservas/', {
+            'fecha': '2026-08-20',
+            'hora_inicio': '19:00',
+            'cliente_nombre': 'Repetido',
+            'modalidad': 'completo',
+            'canchas': [cancha.id, cancha.id, cancha.id, cancha.id],
+        }, format='json')
+        self.assertEqual(response.status_code, 400)
+
+    def test_cancha_inexistente_devuelve_400(self):
+        response = self.client.post('/api/reservas/', {
+            'fecha': '2026-08-20',
+            'hora_inicio': '10:00',
+            'cliente_nombre': 'Fantasma',
+            'modalidad': 'individual',
+            'canchas': [999999],
+        }, format='json')
+        self.assertEqual(response.status_code, 400)

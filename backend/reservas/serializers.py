@@ -38,7 +38,7 @@ class ReservaSerializer(serializers.ModelSerializer):
         ]
 
     def get_canchas(self, reserva):
-        return list(reserva.canchas_asignadas.values_list('cancha_id', flat=True))
+        return [rc.cancha_id for rc in reserva.canchas_asignadas.all()]
 
 
 class NuevaReservaSerializer(serializers.Serializer):
@@ -50,9 +50,16 @@ class NuevaReservaSerializer(serializers.Serializer):
     # especial para ninguno de esos dos casos.
     cliente_nombre = serializers.CharField(max_length=150)
     modalidad = serializers.ChoiceField(choices=Modalidad.choices)
-    canchas = serializers.ListField(
-        child=serializers.IntegerField(), min_length=1, max_length=4,
+    canchas = serializers.PrimaryKeyRelatedField(
+        queryset=Cancha.objects.filter(activa=True), many=True,
     )
+
+    def validate_canchas(self, canchas):
+        if len(canchas) != len(set(c.id for c in canchas)):
+            raise serializers.ValidationError('No se puede repetir la misma cancha.')
+        if not (1 <= len(canchas) <= 4):
+            raise serializers.ValidationError('Debe haber entre 1 y 4 canchas.')
+        return canchas
 
     def validate(self, datos):
         cantidad = len(datos['canchas'])
