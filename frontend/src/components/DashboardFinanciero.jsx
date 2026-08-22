@@ -1,153 +1,43 @@
 import { useEffect, useState } from 'react'
+import {
+  Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
+} from 'recharts'
+import { Banknote, Calendar, CalendarDays, Clock, Smartphone, TrendingUp } from 'lucide-react'
 import { apiFetch } from '../api'
-import { FUENTE, TOKENS, estiloTarjeta } from '../theme'
+
+const COLOR_YAPE = '#7c3aed'
+const COLOR_EFECTIVO = '#059669'
 
 const TARJETAS_PERIODO = [
-  { clave: 'hoy', titulo: 'Hoy', icono: '📅' },
-  { clave: 'ayer', titulo: 'Ayer', icono: '🕓' },
-  { clave: 'esta_semana', titulo: 'Esta semana', icono: '📈' },
-  { clave: 'este_mes', titulo: 'Este mes', icono: '🗓️' },
+  { clave: 'hoy', titulo: 'Hoy', icono: Calendar },
+  { clave: 'ayer', titulo: 'Ayer', icono: Clock },
+  { clave: 'esta_semana', titulo: 'Esta semana', icono: TrendingUp },
+  { clave: 'este_mes', titulo: 'Este mes', icono: CalendarDays },
 ]
 
-function TarjetaPeriodo({ titulo, icono, monto, reservas }) {
+function TarjetaPeriodo({ titulo, Icono, monto, reservas }) {
   return (
-    <div style={{ ...estiloTarjeta, flex: 1, minWidth: 170 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-        <div style={{
-          width: 34, height: 34, borderRadius: 9, background: TOKENS.acentoSuave, display: 'flex',
-          alignItems: 'center', justifyContent: 'center', fontSize: 15, flexShrink: 0,
-        }}>
-          {icono}
-        </div>
-        <div style={{ fontSize: 13, color: TOKENS.textoSuave, fontWeight: 500 }}>{titulo}</div>
+    <div className="min-w-[170px] flex-1 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="mb-3 flex items-center justify-between">
+        <span className="text-sm text-slate-500">{titulo}</span>
+        <Icono className="h-4 w-4 text-slate-400" />
       </div>
-      <div style={{ fontSize: 22, fontWeight: 700 }}>S/{monto}</div>
-      <div style={{ fontSize: 12, color: TOKENS.textoTenue, marginTop: 4 }}>{reservas} reservas</div>
+      <div className="text-2xl font-bold text-slate-900">S/{monto}</div>
+      <div className="mt-1 text-xs text-slate-400">{reservas} reservas</div>
     </div>
   )
 }
 
-function TarjetaMetodo({ icono, titulo, monto, color, fondo }) {
+function TarjetaMetodo({ Icono, titulo, monto, color, fondo }) {
   return (
-    <div style={{ ...estiloTarjeta, flex: 1, minWidth: 220, display: 'flex', alignItems: 'center', gap: 14 }}>
-      <div style={{
-        width: 40, height: 40, borderRadius: 10, background: fondo, display: 'flex',
-        alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0,
-      }}>
-        {icono}
+    <div className="flex min-w-[220px] flex-1 items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${fondo}`}>
+        <Icono className={`h-5 w-5 ${color}`} />
       </div>
       <div>
-        <div style={{ fontSize: 12, color: TOKENS.textoSuave }}>{titulo}</div>
-        <div style={{ fontSize: 19, fontWeight: 700, color }}>S/{monto}</div>
+        <div className="text-xs text-slate-500">{titulo}</div>
+        <div className={`text-lg font-bold ${color}`}>S/{monto}</div>
       </div>
-    </div>
-  )
-}
-
-function GraficoIngresosDiarios({ dias }) {
-  const puntos = dias.map((d) => ({ fecha: d.fecha, yape: Number(d.yape), efectivo: Number(d.efectivo) }))
-  const maxValor = Math.max(1, ...puntos.map((p) => Math.max(p.yape, p.efectivo)))
-  const ancho = 900
-  const alto = 200
-  const margenIzq = 34
-  const margenSup = 10
-  const anchoUtil = ancho - margenIzq - 10
-  const altoUtil = alto - margenSup
-
-  const x = (i) => margenIzq + (i / (puntos.length - 1)) * anchoUtil
-  const y = (v) => margenSup + altoUtil - (v / maxValor) * altoUtil
-
-  const lineaYape = puntos.map((p, i) => `${x(i)},${y(p.yape)}`).join(' ')
-  const lineaEfectivo = puntos.map((p, i) => `${x(i)},${y(p.efectivo)}`).join(' ')
-  const ticksY = [0, 0.25, 0.5, 0.75, 1].map((f) => Math.round(maxValor * f))
-
-  return (
-    <div>
-      <svg viewBox={`0 0 ${ancho} ${alto + 46}`} style={{ width: '100%', height: 'auto', overflow: 'visible' }}>
-        {ticksY.map((t) => (
-          <g key={t}>
-            <line x1={margenIzq} y1={y(t)} x2={ancho - 10} y2={y(t)} stroke={TOKENS.bordeSuave} strokeWidth="1" />
-            <text x={margenIzq - 6} y={y(t) + 3} textAnchor="end" fontSize="9" fill={TOKENS.textoTenue}>{t}</text>
-          </g>
-        ))}
-        <polyline points={lineaEfectivo} fill="none" stroke={TOKENS.libreTexto} strokeWidth="2" />
-        <polyline points={lineaYape} fill="none" stroke={TOKENS.yape} strokeWidth="2" />
-        {puntos.map((p, i) => (
-          <text
-            key={p.fecha}
-            x={x(i)}
-            y={alto + 18}
-            textAnchor="end"
-            fontSize="8"
-            fill={TOKENS.textoTenue}
-            transform={`rotate(-45 ${x(i)} ${alto + 18})`}
-          >
-            {p.fecha.slice(8, 10)}/{p.fecha.slice(5, 7)}
-          </text>
-        ))}
-      </svg>
-      <div style={{ display: 'flex', gap: 16, marginTop: 8 }}>
-        <Leyenda color={TOKENS.yape} texto="Yape" />
-        <Leyenda color={TOKENS.libreTexto} texto="Efectivo" />
-      </div>
-    </div>
-  )
-}
-
-function Leyenda({ color, texto }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: TOKENS.textoSuave }}>
-      <span style={{ width: 10, height: 10, borderRadius: 2, background: color, display: 'inline-block' }} />
-      {texto}
-    </div>
-  )
-}
-
-function YapeVsEfectivo({ totalYape, totalEfectivo }) {
-  const suma = totalYape + totalEfectivo
-  if (suma === 0) {
-    return <p style={{ color: TOKENS.textoTenue, fontSize: 13 }}>Sin pagos registrados aún.</p>
-  }
-  const pctYape = Math.round((totalYape / suma) * 100)
-  const pctEfectivo = 100 - pctYape
-  return (
-    <div>
-      <div style={{ display: 'flex', height: 14, borderRadius: 7, overflow: 'hidden', marginBottom: 14 }}>
-        <div style={{ width: `${pctYape}%`, background: TOKENS.yape }} />
-        <div style={{ width: `${pctEfectivo}%`, background: TOKENS.libreTexto }} />
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-          <Leyenda color={TOKENS.yape} texto="Yape" />
-          <span style={{ fontWeight: 600 }}>{pctYape}% (S/{totalYape.toFixed(2)})</span>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-          <Leyenda color={TOKENS.libreTexto} texto="Efectivo" />
-          <span style={{ fontWeight: 600 }}>{pctEfectivo}% (S/{totalEfectivo.toFixed(2)})</span>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function IngresosPorCancha({ filas }) {
-  const maxMonto = Math.max(1, ...filas.map((f) => Number(f.monto)))
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {filas.map((f) => (
-        <div key={f.cancha} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 96, fontSize: 12, color: TOKENS.textoSuave, flexShrink: 0 }}>{f.cancha}</div>
-          <div style={{ flex: 1, background: TOKENS.fondoSuave, borderRadius: 6, overflow: 'hidden' }}>
-            <div
-              style={{
-                width: `${(Number(f.monto) / maxMonto) * 100}%`, minWidth: Number(f.monto) > 0 ? 4 : 0,
-                background: TOKENS.acento, height: 18, borderRadius: 6,
-              }}
-            />
-          </div>
-          <div style={{ width: 70, fontSize: 12, fontWeight: 600, textAlign: 'right' }}>S/{f.monto}</div>
-        </div>
-      ))}
     </div>
   )
 }
@@ -159,78 +49,91 @@ export default function DashboardFinanciero() {
 
   useEffect(() => {
     let vigente = true
-    async function cargar() {
-      setCargando(true)
-      setError('')
-      try {
-        const data = await apiFetch('/reservas/dashboard-financiero/')
-        if (!vigente) return
-        setDatos(data)
-      } catch (err) {
-        if (!vigente) return
-        setError(err.message)
-      } finally {
-        if (vigente) setCargando(false)
-      }
-    }
-    cargar()
-    return () => {
-      vigente = false
-    }
+    apiFetch('/reservas/dashboard-financiero/')
+      .then((data) => { if (vigente) setDatos(data) })
+      .catch((err) => { if (vigente) setError(err.message) })
+      .finally(() => { if (vigente) setCargando(false) })
+    return () => { vigente = false }
   }, [])
 
+  if (cargando) return <p>Cargando...</p>
+  if (error) return <p className="text-red-600">{error}</p>
+  if (!datos) return null
+
+  const diarios = datos.ingresos_diarios_30_dias.map((d) => ({
+    fecha: `${d.fecha.slice(8, 10)}/${d.fecha.slice(5, 7)}`, Yape: Number(d.yape), Efectivo: Number(d.efectivo),
+  }))
+  const pieData = [
+    { name: 'Yape', value: Number(datos.total_yape_30_dias), fill: COLOR_YAPE },
+    { name: 'Efectivo', value: Number(datos.total_efectivo_30_dias), fill: COLOR_EFECTIVO },
+  ]
+  const porCancha = datos.ingresos_por_cancha_30_dias.map((f) => ({ cancha: f.cancha, monto: Number(f.monto) }))
+
   return (
-    <div style={{ fontFamily: FUENTE }}>
-      <h2 style={{ margin: '0 0 20px', fontSize: 22, color: TOKENS.texto }}>Dashboard financiero</h2>
+    <div>
+      <h2 className="mb-5 text-2xl font-bold text-slate-900">Dashboard financiero</h2>
 
-      {cargando && <p>Cargando...</p>}
-      {error && <p style={{ color: TOKENS.peligro }}>{error}</p>}
+      <div className="mb-4 flex flex-wrap gap-4">
+        {TARJETAS_PERIODO.map((t) => (
+          <TarjetaPeriodo
+            key={t.clave} titulo={t.titulo} Icono={t.icono}
+            monto={datos[t.clave].monto} reservas={datos[t.clave].reservas}
+          />
+        ))}
+      </div>
 
-      {!cargando && !error && datos && (
-        <>
-          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 14 }}>
-            {TARJETAS_PERIODO.map((t) => (
-              <TarjetaPeriodo
-                key={t.clave}
-                titulo={t.titulo}
-                icono={t.icono}
-                monto={datos[t.clave].monto}
-                reservas={datos[t.clave].reservas}
-              />
-            ))}
-          </div>
+      <div className="mb-4 flex flex-wrap gap-4">
+        <TarjetaMetodo
+          Icono={Smartphone} titulo="Total Yape (30 días)" monto={datos.total_yape_30_dias}
+          color="text-violet-600" fondo="bg-violet-100"
+        />
+        <TarjetaMetodo
+          Icono={Banknote} titulo="Total Efectivo (30 días)" monto={datos.total_efectivo_30_dias}
+          color="text-emerald-600" fondo="bg-emerald-100"
+        />
+      </div>
 
-          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 14 }}>
-            <TarjetaMetodo
-              icono="📱" titulo="Total Yape (30 días)" monto={datos.total_yape_30_dias}
-              color={TOKENS.yape} fondo={TOKENS.yapeFondo}
-            />
-            <TarjetaMetodo
-              icono="💵" titulo="Total Efectivo (30 días)" monto={datos.total_efectivo_30_dias}
-              color={TOKENS.libreTexto} fondo={TOKENS.libreFondo}
-            />
-          </div>
+      <div className="mb-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <h3 className="mb-3 font-semibold text-slate-900">Ingresos diarios (últimos 30 días)</h3>
+        <ResponsiveContainer width="100%" height={260}>
+          <BarChart data={diarios}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+            <XAxis dataKey="fecha" fontSize={10} interval={2} />
+            <YAxis fontSize={10} />
+            <Tooltip />
+            <Legend />
+            <Bar dataKey="Yape" stackId="a" fill={COLOR_YAPE} />
+            <Bar dataKey="Efectivo" stackId="a" fill={COLOR_EFECTIVO} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
 
-          <div style={{ ...estiloTarjeta, marginBottom: 14 }}>
-            <h3 style={{ margin: '0 0 14px', fontSize: 15 }}>Ingresos diarios (últimos 30 días)</h3>
-            <GraficoIngresosDiarios dias={datos.ingresos_diarios_30_dias} />
-          </div>
-
-          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-            <div style={{ ...estiloTarjeta, flex: 1, minWidth: 260 }}>
-              <h3 style={{ margin: '0 0 14px', fontSize: 15 }}>Yape vs Efectivo</h3>
-              <YapeVsEfectivo
-                totalYape={Number(datos.total_yape_30_dias)}
-                totalEfectivo={Number(datos.total_efectivo_30_dias)}
-              />
-            </div>
-            <div style={{ ...estiloTarjeta, flex: 1, minWidth: 320 }}>
-              <h3 style={{ margin: '0 0 14px', fontSize: 15 }}>Ingresos por cancha (30 días)</h3>
-              <IngresosPorCancha filas={datos.ingresos_por_cancha_30_dias} />
-            </div>
-          </div>
-        </>
-      )}
+      <div className="flex flex-wrap gap-4">
+        <div className="min-w-[260px] flex-1 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <h3 className="mb-3 font-semibold text-slate-900">Yape vs Efectivo</h3>
+          <ResponsiveContainer width="100%" height={220}>
+            <PieChart>
+              <Pie data={pieData} dataKey="value" nameKey="name" innerRadius={60} outerRadius={90}>
+                {pieData.map((entrada) => <Cell key={entrada.name} fill={entrada.fill} />)}
+              </Pie>
+              <Legend />
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="min-w-[320px] flex-1 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <h3 className="mb-3 font-semibold text-slate-900">Ingresos por cancha (30 días)</h3>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={porCancha} layout="vertical" margin={{ left: 20 }}>
+              <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+              <XAxis type="number" fontSize={10} />
+              <YAxis type="category" dataKey="cancha" fontSize={11} width={90} />
+              <Tooltip />
+              <Bar dataKey="monto" fill="#0891b2" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
     </div>
   )
 }
