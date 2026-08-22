@@ -1,10 +1,11 @@
 import { Link, useLocation } from 'react-router-dom'
+import { BarChart3, Calendar, Trophy } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { FUENTE, TOKENS } from '../theme'
+import { Button } from './ui/button'
 
 const NAV = [
-  { to: '/', label: 'Reservas', icono: '🗓️' },
-  { to: '/dashboard', label: 'Dashboard', icono: '📊' },
+  { to: '/', label: 'Administración de campo', icono: Calendar },
+  { to: '/dashboard', label: 'Dashboard', icono: BarChart3 },
 ]
 
 export default function PanelLayout({ children }) {
@@ -12,66 +13,48 @@ export default function PanelLayout({ children }) {
   const { cerrarSesion } = useAuth()
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: TOKENS.fondo, color: TOKENS.texto, fontFamily: FUENTE }}>
-      <aside style={{
-        width: 224, flexShrink: 0, background: TOKENS.tarjeta, borderRight: `1px solid ${TOKENS.borde}`,
-        padding: '22px 0', display: 'flex', flexDirection: 'column',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 20px', marginBottom: 28 }}>
-          <div style={{
-            width: 36, height: 36, borderRadius: 9, background: TOKENS.acento, display: 'flex',
-            alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: 16,
-          }}>
-            ⚽
+    <div className="flex min-h-screen bg-slate-50 text-slate-900">
+      <aside className="flex w-56 shrink-0 flex-col border-r border-slate-200 bg-white py-6">
+        <div className="mb-8 flex items-center gap-2.5 px-5">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500 text-white">
+            <Trophy className="h-5 w-5" />
           </div>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 15, lineHeight: 1.2 }}>Campos</div>
-            <div style={{ fontSize: 11, color: TOKENS.textoTenue }}>Panel de administración</div>
+            <div className="text-sm font-bold leading-tight">Campos</div>
+            <div className="text-xs text-slate-400">Panel de administración</div>
           </div>
         </div>
 
-        <nav style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '0 12px', flex: 1 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: TOKENS.textoTenue, textTransform: 'uppercase', letterSpacing: 0.5, padding: '0 12px', marginBottom: 8 }}>
+        <nav className="flex flex-1 flex-col gap-1 px-3">
+          <div className="mb-2 px-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
             Principal
           </div>
           {NAV.map((item) => {
             const activo = location.pathname === item.to
+            const Icono = item.icono
             return (
               <Link
                 key={item.to}
                 to={item.to}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
-                  borderRadius: 9, textDecoration: 'none', fontSize: 14,
-                  background: activo ? TOKENS.acento : 'transparent',
-                  color: activo ? 'white' : TOKENS.textoSuave,
-                  fontWeight: activo ? 600 : 500,
-                  boxShadow: activo ? '0 2px 6px rgba(29,209,227,0.35)' : 'none',
-                }}
+                className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                  activo ? 'bg-emerald-500 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
+                }`}
               >
-                <span aria-hidden="true">{item.icono}</span>
+                <Icono className="h-4 w-4" />
                 {item.label}
               </Link>
             )
           })}
         </nav>
 
-        <div style={{ padding: '0 20px' }}>
-          <button
-            onClick={cerrarSesion}
-            style={{
-              width: '100%', padding: '10px 0', borderRadius: 9, border: `1px solid ${TOKENS.borde}`,
-              background: 'white', color: TOKENS.textoSuave, cursor: 'pointer', fontSize: 13,
-            }}
-          >
-            Cerrar sesion
-          </button>
+        <div className="px-5">
+          <Button variant="outline" className="w-full" onClick={cerrarSesion}>
+            Cerrar sesión
+          </Button>
         </div>
       </aside>
 
-      <main style={{ flex: 1, padding: 28, overflowX: 'auto', minWidth: 0 }}>
-        {children}
-      </main>
+      <main className="min-w-0 flex-1 overflow-x-auto p-7">{children}</main>
     </div>
   )
 }

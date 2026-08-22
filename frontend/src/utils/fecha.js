@@ -28,3 +28,14 @@ export function lunesDeLaSemana(fechaTexto) {
 }
 
 export const NOMBRES_DIA = ['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom']
+
+const NOMBRES_DIA_LARGO = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+const NOMBRES_MES = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto',
+  'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+]
+
+export function formatearFechaLarga(fechaTexto) {
+  const fecha = parsearFecha(fechaTexto)
+  return `${NOMBRES_DIA_LARGO[fecha.getDay()]} ${fecha.getDate()} de ${NOMBRES_MES[fecha.getMonth()]}`
+}
