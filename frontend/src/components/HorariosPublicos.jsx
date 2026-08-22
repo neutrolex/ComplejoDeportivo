@@ -5,6 +5,18 @@ const NOMBRE_COMPLEJO = 'Complejo Deportivo la 7'
 const WHATSAPP_URL = 'https://wa.me/51981154002'
 const WHATSAPP_TEXTO = '+51 981 154 002'
 
+const TOKENS = {
+  fondo: '#FAFAFB',
+  fondoSuave: '#F7F8FA',
+  texto: '#1F2430',
+  textoSuave: '#6B7280',
+  textoTenue: '#8A8F98',
+  borde: '#E4E6EA',
+  bordeSuave: '#EEF0F2',
+  bordeInput: '#D8DADF',
+  acento: '#12946B',
+}
+
 const BASE_URL = import.meta.env.VITE_API_URL
 
 async function obtenerDisponibilidadPublica(fecha) {
@@ -91,17 +103,17 @@ export default function HorariosPublicos() {
   return (
     <div style={{
       minHeight: '100vh', width: '100vw', position: 'relative', left: '50%', marginLeft: '-50vw',
-      background: '#FAFAFB', color: '#1F2430', textAlign: 'left',
+      background: TOKENS.fondo, color: TOKENS.texto, textAlign: 'left',
       fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 32px', borderBottom: '1px solid #E4E6EA' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 32px', borderBottom: `1px solid ${TOKENS.borde}` }}>
         <div style={{ fontWeight: 700, fontSize: 18 }}>{NOMBRE_COMPLEJO}</div>
         <a
           href={WHATSAPP_URL}
           target="_blank"
           rel="noreferrer"
           style={{
-            height: 40, padding: '0 18px', borderRadius: 9, background: '#12946B',
+            height: 40, padding: '0 18px', borderRadius: 9, background: TOKENS.acento,
             color: 'white', fontWeight: 600, fontSize: 13, display: 'flex',
             alignItems: 'center', textDecoration: 'none',
           }}
@@ -111,8 +123,8 @@ export default function HorariosPublicos() {
       </div>
 
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '40px 32px 24px', textAlign: 'center' }}>
-        <h1 style={{ fontSize: 28, fontWeight: 700, margin: '0 0 8px', color: '#1F2430' }}>Encontrá tu horario libre al instante</h1>
-        <p style={{ fontSize: 14, color: '#6B7280', margin: 0 }}>
+        <h1 style={{ fontSize: 28, fontWeight: 700, margin: '0 0 8px', color: TOKENS.texto }}>Encontrá tu horario libre al instante</h1>
+        <p style={{ fontSize: 14, color: TOKENS.textoSuave, margin: 0 }}>
           Disponibilidad de nuestras 4 canchas, actualizada por el equipo del complejo.
         </p>
       </div>
@@ -120,7 +132,7 @@ export default function HorariosPublicos() {
       <div style={{ maxWidth: 900, margin: '0 auto 48px', padding: '0 32px' }}>
         <div
           style={{
-            background: 'white', border: '1px solid #E4E6EA', borderRadius: 16,
+            background: 'white', border: `1px solid ${TOKENS.borde}`, borderRadius: 16,
             boxShadow: '0 1px 2px rgba(20,20,30,0.04), 0 8px 24px rgba(20,20,30,0.05)',
             padding: '24px 24px 8px',
           }}
@@ -128,14 +140,16 @@ export default function HorariosPublicos() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
             <button
               onClick={() => setFecha(sumarDias(fecha, -7))}
-              style={{ width: 34, height: 34, borderRadius: 9, border: '1px solid #D8DADF', background: 'white', color: '#1F2430', fontSize: 15, cursor: 'pointer' }}
+              aria-label="Semana anterior"
+              style={{ width: 34, height: 34, borderRadius: 9, border: `1px solid ${TOKENS.bordeInput}`, background: 'white', color: TOKENS.texto, fontSize: 15, cursor: 'pointer' }}
             >
               ‹
             </button>
             <div style={{ fontWeight: 600, fontSize: 14 }}>{formatearRangoSemana(lunes)}</div>
             <button
               onClick={() => setFecha(sumarDias(fecha, 7))}
-              style={{ width: 34, height: 34, borderRadius: 9, border: '1px solid #D8DADF', background: 'white', color: '#1F2430', fontSize: 15, cursor: 'pointer' }}
+              aria-label="Semana siguiente"
+              style={{ width: 34, height: 34, borderRadius: 9, border: `1px solid ${TOKENS.bordeInput}`, background: 'white', color: TOKENS.texto, fontSize: 15, cursor: 'pointer' }}
             >
               ›
             </button>
@@ -151,9 +165,9 @@ export default function HorariosPublicos() {
                   style={{
                     flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
                     justifyContent: 'center', gap: 3, height: 54, borderRadius: 11,
-                    border: `1px solid ${seleccionado ? '#12946B' : '#D8DADF'}`,
-                    background: seleccionado ? '#12946B' : 'white',
-                    color: seleccionado ? 'white' : '#1F2430',
+                    border: `1px solid ${seleccionado ? TOKENS.acento : TOKENS.bordeInput}`,
+                    background: seleccionado ? TOKENS.acento : 'white',
+                    color: seleccionado ? 'white' : TOKENS.texto,
                     cursor: 'pointer',
                   }}
                 >
@@ -168,28 +182,31 @@ export default function HorariosPublicos() {
             {[['libre', 'Libre'], ['ocupado', 'Ocupado'], ['academia', 'Academia']].map(([clave, texto]) => (
               <div key={clave} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ width: 9, height: 9, borderRadius: '50%', background: COLORES[clave].fg, display: 'inline-block' }} />
-                <span style={{ fontSize: 12, color: '#6B7280' }}>{texto}</span>
+                <span style={{ fontSize: 12, color: TOKENS.textoSuave }}>{texto}</span>
               </div>
             ))}
           </div>
 
-          {cargando && <p>Cargando...</p>}
+          {cargando && !disponibilidad && <p>Cargando...</p>}
           {error && <p style={{ color: 'red' }}>{error}</p>}
 
-          {!cargando && !error && disponibilidad && (
-            <div style={{ border: '1px solid #E4E6EA', borderRadius: 12, overflow: 'hidden', marginBottom: 20 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: COLUMNAS_GRID, background: '#F7F8FA', padding: '10px 14px', borderBottom: '1px solid #E4E6EA' }}>
-                <div style={{ fontSize: 11, color: '#6B7280', textTransform: 'uppercase' }}>Hora</div>
-                <div style={{ fontSize: 11, color: '#6B7280', textAlign: 'center' }}>C1</div>
-                <div style={{ fontSize: 11, color: '#6B7280', textAlign: 'center' }}>C2</div>
-                <div style={{ fontSize: 11, color: '#6B7280', textAlign: 'center' }}>C3</div>
-                <div style={{ fontSize: 11, color: '#6B7280', textAlign: 'center' }}>C4</div>
-                <div style={{ fontSize: 11, color: '#6B7280', textAlign: 'center' }}>Campo completo</div>
+          {!error && disponibilidad && (
+            <div style={{
+              border: `1px solid ${TOKENS.borde}`, borderRadius: 12, overflow: 'hidden', marginBottom: 20,
+              opacity: cargando ? 0.55 : 1, transition: 'opacity 0.15s',
+            }}>
+              <div style={{ display: 'grid', gridTemplateColumns: COLUMNAS_GRID, background: TOKENS.fondoSuave, padding: '10px 14px', borderBottom: `1px solid ${TOKENS.borde}` }}>
+                <div style={{ fontSize: 11, color: TOKENS.textoSuave, textTransform: 'uppercase' }}>Hora</div>
+                <div style={{ fontSize: 11, color: TOKENS.textoSuave, textAlign: 'center' }}>C1</div>
+                <div style={{ fontSize: 11, color: TOKENS.textoSuave, textAlign: 'center' }}>C2</div>
+                <div style={{ fontSize: 11, color: TOKENS.textoSuave, textAlign: 'center' }}>C3</div>
+                <div style={{ fontSize: 11, color: TOKENS.textoSuave, textAlign: 'center' }}>C4</div>
+                <div style={{ fontSize: 11, color: TOKENS.textoSuave, textAlign: 'center' }}>Campo completo</div>
               </div>
               {disponibilidad.horas.map((h) => (
                 <div
                   key={h.hora}
-                  style={{ display: 'grid', gridTemplateColumns: COLUMNAS_GRID, alignItems: 'center', padding: '8px 14px', borderBottom: '1px solid #EEF0F2' }}
+                  style={{ display: 'grid', gridTemplateColumns: COLUMNAS_GRID, alignItems: 'center', padding: '8px 14px', borderBottom: `1px solid ${TOKENS.bordeSuave}` }}
                 >
                   <div style={{ fontSize: 12.5 }}>{h.hora}</div>
                   {['1', '2', '3', '4'].map((numero) => {
@@ -215,10 +232,10 @@ export default function HorariosPublicos() {
       </div>
 
       <div style={{ textAlign: 'center', padding: '0 32px 40px' }}>
-        <p style={{ fontSize: 12, color: '#8A8F98', margin: '0 0 4px' }}>
+        <p style={{ fontSize: 12, color: TOKENS.textoTenue, margin: '0 0 4px' }}>
           Los horarios los actualiza el personal del complejo — pueden variar.
         </p>
-        <p style={{ fontSize: 12, color: '#8A8F98', margin: 0 }}>WhatsApp: {WHATSAPP_TEXTO}</p>
+        <p style={{ fontSize: 12, color: TOKENS.textoTenue, margin: 0 }}>WhatsApp: {WHATSAPP_TEXTO}</p>
       </div>
     </div>
   )
