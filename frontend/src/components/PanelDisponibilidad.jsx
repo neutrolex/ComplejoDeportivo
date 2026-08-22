@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { apiFetch } from '../api'
 import { formatearFecha, formatearFechaLarga } from '../utils/fecha'
 import { Badge } from './ui/badge'
+import ComentariosDia from './ComentariosDia'
 import ReservaDialogo from './ReservaDialogo'
 
 function calcularHoras(tarifas) {
@@ -135,10 +136,12 @@ export default function PanelDisponibilidad() {
         />
       </div>
 
-      {cargando && <p>Cargando...</p>}
-      {error && <p className="text-red-600">{error}</p>}
+      <div className="flex gap-6">
+        <div className="min-w-0 flex-1">
+          {cargando && <p>Cargando...</p>}
+          {error && <p className="text-red-600">{error}</p>}
 
-      {!cargando && !error && (
+          {!cargando && !error && (
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <table className="w-full border-collapse text-sm">
             <thead>
@@ -215,7 +218,13 @@ export default function PanelDisponibilidad() {
             </tbody>
           </table>
         </div>
-      )}
+          )}
+        </div>
+
+        <div className="w-80 shrink-0">
+          <ComentariosDia key={`comentarios-${fecha}`} fecha={fecha} />
+        </div>
+      </div>
 
       <ReservaDialogo
         contexto={dialogoContexto}
