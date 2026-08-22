@@ -3,16 +3,24 @@ import { apiFetch } from '../api'
 import { FUENTE, TOKENS, estiloTarjeta } from '../theme'
 
 const TARJETAS_PERIODO = [
-  { clave: 'hoy', titulo: 'Hoy' },
-  { clave: 'ayer', titulo: 'Ayer' },
-  { clave: 'esta_semana', titulo: 'Esta semana' },
-  { clave: 'este_mes', titulo: 'Este mes' },
+  { clave: 'hoy', titulo: 'Hoy', icono: '📅' },
+  { clave: 'ayer', titulo: 'Ayer', icono: '🕓' },
+  { clave: 'esta_semana', titulo: 'Esta semana', icono: '📈' },
+  { clave: 'este_mes', titulo: 'Este mes', icono: '🗓️' },
 ]
 
-function TarjetaPeriodo({ titulo, monto, reservas }) {
+function TarjetaPeriodo({ titulo, icono, monto, reservas }) {
   return (
-    <div style={{ ...estiloTarjeta, flex: 1, minWidth: 160 }}>
-      <div style={{ fontSize: 13, color: TOKENS.textoSuave, marginBottom: 8 }}>{titulo}</div>
+    <div style={{ ...estiloTarjeta, flex: 1, minWidth: 170 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+        <div style={{
+          width: 34, height: 34, borderRadius: 9, background: TOKENS.acentoSuave, display: 'flex',
+          alignItems: 'center', justifyContent: 'center', fontSize: 15, flexShrink: 0,
+        }}>
+          {icono}
+        </div>
+        <div style={{ fontSize: 13, color: TOKENS.textoSuave, fontWeight: 500 }}>{titulo}</div>
+      </div>
       <div style={{ fontSize: 22, fontWeight: 700 }}>S/{monto}</div>
       <div style={{ fontSize: 12, color: TOKENS.textoTenue, marginTop: 4 }}>{reservas} reservas</div>
     </div>
@@ -185,6 +193,7 @@ export default function DashboardFinanciero() {
               <TarjetaPeriodo
                 key={t.clave}
                 titulo={t.titulo}
+                icono={t.icono}
                 monto={datos[t.clave].monto}
                 reservas={datos[t.clave].reservas}
               />

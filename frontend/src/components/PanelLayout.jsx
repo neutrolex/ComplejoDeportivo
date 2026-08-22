@@ -31,6 +31,9 @@ export default function PanelLayout({ children }) {
         </div>
 
         <nav style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '0 12px', flex: 1 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: TOKENS.textoTenue, textTransform: 'uppercase', letterSpacing: 0.5, padding: '0 12px', marginBottom: 8 }}>
+            Principal
+          </div>
           {NAV.map((item) => {
             const activo = location.pathname === item.to
             return (
@@ -40,9 +43,10 @@ export default function PanelLayout({ children }) {
                 style={{
                   display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
                   borderRadius: 9, textDecoration: 'none', fontSize: 14,
-                  background: activo ? TOKENS.acentoSuave : 'transparent',
-                  color: activo ? TOKENS.acento : TOKENS.textoSuave,
+                  background: activo ? TOKENS.acento : 'transparent',
+                  color: activo ? 'white' : TOKENS.textoSuave,
                   fontWeight: activo ? 600 : 500,
+                  boxShadow: activo ? '0 2px 6px rgba(29,209,227,0.35)' : 'none',
                 }}
               >
                 <span aria-hidden="true">{item.icono}</span>
