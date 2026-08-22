@@ -2,29 +2,35 @@ from datetime import time
 
 from django.test import TestCase
 
-from reservas.models import Academia, Cancha, Modalidad, ObservacionDia, Reserva
+from reservas.models import Academia, Cancha, ComentarioDia, Modalidad, Reserva
 from usuarios.models import UsuarioInterno
 
 
-class ObservacionDiaTest(TestCase):
+class ComentarioDiaTest(TestCase):
     def setUp(self):
         self.usuario = UsuarioInterno.objects.create_user(
             usuario='ana', password='clave123', nombre='Ana',
         )
 
-    def test_update_or_create_hace_upsert_por_fecha(self):
-        ObservacionDia.objects.update_or_create(
-            fecha='2026-08-20',
-            defaults={'texto': 'Talentos debe 515.00', 'actualizado_por': self.usuario},
+    def test_crea_comentario_con_montos_por_defecto_en_cero(self):
+        comentario = ComentarioDia.objects.create(
+            fecha='2026-08-20', texto='Nota sin plata', creado_por=self.usuario,
         )
-        ObservacionDia.objects.update_or_create(
-            fecha='2026-08-20',
-            defaults={'texto': 'Talentos debe 600.00', 'actualizado_por': self.usuario},
-        )
+        self.assertEqual(str(comentario.monto_yape), '0.00')
+        self.assertEqual(str(comentario.monto_efectivo), '0.00')
 
-        self.assertEqual(ObservacionDia.objects.count(), 1)
-        observacion = ObservacionDia.objects.get(fecha='2026-08-20')
-        self.assertEqual(observacion.texto, 'Talentos debe 600.00')
+    def test_permite_varios_comentarios_en_el_mismo_dia(self):
+        ComentarioDia.objects.create(fecha='2026-08-20', texto='Primero', creado_por=self.usuario)
+        ComentarioDia.objects.create(fecha='2026-08-20', texto='Segundo', creado_por=self.usuario)
+
+        self.assertEqual(ComentarioDia.objects.filter(fecha='2026-08-20').count(), 2)
+
+    def test_ordena_del_mas_reciente_al_mas_antiguo(self):
+        primero = ComentarioDia.objects.create(fecha='2026-08-20', texto='Primero', creado_por=self.usuario)
+        segundo = ComentarioDia.objects.create(fecha='2026-08-20', texto='Segundo', creado_por=self.usuario)
+
+        ids_en_orden = list(ComentarioDia.objects.values_list('id', flat=True))
+        self.assertEqual(ids_en_orden, [segundo.id, primero.id])
 
 
 class ReservaAcademiaTest(TestCase):

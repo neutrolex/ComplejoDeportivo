@@ -6,15 +6,16 @@ from django.db.models import Sum
 from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.generics import ListAPIView
+from rest_framework.generics import DestroyAPIView, ListAPIView, ListCreateAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Academia, Cancha, Modalidad, ObservacionDia, Pago, Reserva, ReservaCancha, Tarifa
+from .models import Academia, Cancha, ComentarioDia, Modalidad, Pago, Reserva, ReservaCancha, Tarifa
 from .serializers import (
     AcademiaSerializer,
     CanchaSerializer,
+    ComentarioDiaSerializer,
     NuevaReservaSerializer,
     ReservaSerializer,
     TarifaSerializer,
@@ -268,28 +269,32 @@ class DisponibilidadPublicaView(APIView):
         return Response({'fecha': fecha, 'horas': horas_resultado})
 
 
-class ObservacionDiaView(APIView):
+class ComentarioDiaListCreateView(ListCreateAPIView):
+    serializer_class = ComentarioDiaSerializer
     permission_classes = [IsAuthenticated]
 
-    def get(self, request, fecha):
+    def get_queryset(self):
+        fecha = self.request.query_params.get('fecha')
         if not fecha_valida(fecha):
-            return Response(
-                {'detail': 'Formato de fecha invalido, use YYYY-MM-DD.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        observacion = ObservacionDia.objects.filter(fecha=fecha).first()
-        texto = observacion.texto if observacion else ''
-        return Response({'fecha': fecha, 'texto': texto})
+            return ComentarioDia.objects.none()
+        return ComentarioDia.objects.filter(fecha=fecha)
 
-    def put(self, request, fecha):
+    def list(self, request, *args, **kwargs):
+        fecha = request.query_params.get('fecha')
+        if not fecha:
+            return Response(
+                {'detail': 'Falta el parametro fecha.'}, status=status.HTTP_400_BAD_REQUEST,
+            )
         if not fecha_valida(fecha):
             return Response(
-                {'detail': 'Formato de fecha invalido, use YYYY-MM-DD.'},
-                status=status.HTTP_400_BAD_REQUEST,
+                {'detail': 'Formato de fecha invalido, use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST,
             )
-        texto = request.data.get('texto', '')
-        observacion, _ = ObservacionDia.objects.update_or_create(
-            fecha=fecha,
-            defaults={'texto': texto, 'actualizado_por': request.user},
-        )
-        return Response({'fecha': fecha, 'texto': observacion.texto})
+        return super().list(request, *args, **kwargs)
+
+    def perform_create(self, serializer):
+        serializer.save(creado_por=self.request.user)
+
+
+class ComentarioDiaDestroyView(DestroyAPIView):
+    queryset = ComentarioDia.objects.all()
+    permission_classes = [IsAuthenticated]

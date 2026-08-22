@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from rest_framework import serializers
 
-from .models import Academia, Cancha, Modalidad, Pago, Reserva, Tarifa
+from .models import Academia, Cancha, ComentarioDia, Modalidad, Pago, Reserva, Tarifa
 
 
 class AcademiaSerializer(serializers.ModelSerializer):
@@ -87,3 +87,10 @@ class NuevaReservaSerializer(serializers.Serializer):
                 'Una reserva de campo completo debe tener exactamente 4 canchas.'
             )
         return datos
+
+
+class ComentarioDiaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ComentarioDia
+        fields = ['id', 'fecha', 'texto', 'monto_yape', 'monto_efectivo', 'creado_en']
+        read_only_fields = ['id', 'creado_en']

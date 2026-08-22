@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
@@ -137,18 +139,27 @@ class Academia(models.Model):
         return self.nombre
 
 
-class ObservacionDia(models.Model):
-    """Texto libre por día (ej. deudas de academias anotadas a mano).
-    Sin ningún cálculo automático — ver spec seccion 2.1."""
-    fecha = models.DateField(unique=True)
-    texto = models.TextField(blank=True, default='')
-    actualizado_en = models.DateTimeField(auto_now=True)
-    actualizado_por = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True,
+class ComentarioDia(models.Model):
+    """Notas del dia, no ligadas a ninguna reserva especifica (ej. ventas
+    sueltas, deudas). Puede haber varias por dia, cada una con su propio
+    monto opcional en Yape y/o Efectivo -- ver spec seccion 3.2. 'fecha' es
+    la fecha del panel que se estaba viendo al crear el comentario, no
+    necesariamente 'hoy'."""
+    fecha = models.DateField()
+    texto = models.CharField(max_length=500)
+    monto_yape = models.DecimalField(max_digits=7, decimal_places=2, default=Decimal('0.00'))
+    monto_efectivo = models.DecimalField(max_digits=7, decimal_places=2, default=Decimal('0.00'))
+    creado_en = models.DateTimeField(auto_now_add=True)
+    creado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='comentarios_dia',
     )
 
     class Meta:
-        db_table = 'observaciones_dia'
+        db_table = 'comentarios_dia'
+        # '-id' desempata cuando dos comentarios se crean tan seguido que
+        # 'creado_en' queda igual (pasa en tests, y podria pasar en la app
+        # real si dos personas guardan casi al mismo tiempo).
+        ordering = ['-creado_en', '-id']
 
     def __str__(self):
-        return f'Observaciones {self.fecha}'
+        return f'Comentario {self.fecha}: {self.texto[:40]}'
