@@ -82,6 +82,13 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
+    # Seguro por defecto: si alguna vista futura olvida declarar
+    # permission_classes, que falle cerrada (exija login) en vez de
+    # quedar publica sin querer. DisponibilidadPublicaView sigue siendo
+    # publica porque declara AllowAny explicitamente.
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
 }
 
 # Duracion de los tokens. El 'access' es el que se manda en cada peticion;

@@ -167,6 +167,7 @@ class DisponibilidadPublicaView(APIView):
     cliente_nombre, montos ni metodos de pago -- solo libre/ocupado y,
     cuando corresponde, el nombre de una academia con permiso de
     mostrarse."""
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     def get(self, request):
@@ -214,11 +215,16 @@ class DisponibilidadPublicaView(APIView):
             completo = next(
                 (r for r in reservas_hora if r.modalidad == Modalidad.COMPLETO), None,
             )
+            todas_las_canchas_ocupadas = bool(canchas) and all(
+                canchas_estado[str(c.numero)]['estado'] == 'ocupado' for c in canchas
+            )
             if completo:
                 campo_completo_estado = {
                     'estado': 'ocupado',
                     'academia': nombre_academia_visible(completo),
                 }
+            elif todas_las_canchas_ocupadas:
+                campo_completo_estado = {'estado': 'ocupado', 'academia': None}
             else:
                 campo_completo_estado = {'estado': 'libre'}
 

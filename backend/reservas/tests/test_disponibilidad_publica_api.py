@@ -1,8 +1,9 @@
+import json
 from datetime import time
 
 from rest_framework.test import APIClient, APITestCase
 
-from reservas.models import Academia, Cancha, Modalidad, Reserva, ReservaCancha
+from reservas.models import Academia, Cancha, Modalidad, Pago, Reserva, ReservaCancha
 from usuarios.models import UsuarioInterno
 
 
@@ -105,3 +106,31 @@ class DisponibilidadPublicaApiTest(APITestCase):
 
         hora_10 = self._hora(response, '10:00')
         self.assertEqual(hora_10['canchas']['1']['estado'], 'libre')
+
+    def test_el_payload_completo_nunca_incluye_datos_sensibles(self):
+        cancha = Cancha.objects.get(numero=1)
+        reserva = self._crear_reserva([cancha.id], cliente='Juan Perez Identificable')
+        Pago.objects.create(
+            reserva=reserva, tipo='saldo', monto='50.00', metodo='yape',
+            registrado_por=self.usuario,
+        )
+
+        response = self.client.get('/api/publico/disponibilidad/', {'fecha': '2026-08-24'})
+
+        cuerpo = json.dumps(response.data)
+        self.assertNotIn('Juan Perez Identificable', cuerpo)
+        self.assertNotIn('50.00', cuerpo)
+        self.assertNotIn('yape', cuerpo)
+        self.assertNotIn('metodo', cuerpo)
+        self.assertNotIn('monto', cuerpo)
+
+    def test_campo_completo_ocupado_si_las_4_canchas_se_reservan_por_separado(self):
+        for numero in [1, 2, 3, 4]:
+            cancha = Cancha.objects.get(numero=numero)
+            self._crear_reserva([cancha.id], cliente=f'Cliente {numero}')
+
+        response = self.client.get('/api/publico/disponibilidad/', {'fecha': '2026-08-24'})
+
+        hora_10 = self._hora(response, '10:00')
+        self.assertEqual(hora_10['campo_completo']['estado'], 'ocupado')
+        self.assertIsNone(hora_10['campo_completo']['academia'])
