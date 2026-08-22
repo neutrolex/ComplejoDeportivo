@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from django.test import TestCase
 
-from reservas.models import Academia, Cancha, Modalidad, Pago, Reserva, ReservaCancha
+from reservas.models import Academia, Cancha, ComentarioDia, Modalidad, Pago, Reserva, ReservaCancha
 from reservas.servicios import (
     canchas_ocupadas,
     guardar_pago,
@@ -251,6 +251,56 @@ class ResumenFinancieroDashboardTest(TestCase):
         self.assertEqual(por_cancha['Cancha 2'], '0.00')
         self.assertEqual(por_cancha['Cancha 3'], '0.00')
         self.assertEqual(por_cancha['Cancha 4'], '0.00')
+
+    def test_hoy_suma_tambien_comentarios_del_dia(self):
+        ComentarioDia.objects.create(
+            fecha=self.hoy, texto='Venta suelta', monto_yape='25.00', creado_por=self.usuario,
+        )
+
+        resumen = resumen_financiero_dashboard(self.hoy)
+
+        self.assertEqual(resumen['hoy']['monto'], '25.00')
+        self.assertEqual(resumen['hoy']['reservas'], 0)
+
+    def test_comentario_de_otro_dia_no_afecta_hoy(self):
+        ComentarioDia.objects.create(
+            fecha='2026-08-21', texto='Ayer', monto_efectivo='10.00', creado_por=self.usuario,
+        )
+
+        resumen = resumen_financiero_dashboard(self.hoy)
+
+        self.assertEqual(resumen['hoy']['monto'], '0.00')
+        self.assertEqual(resumen['ayer']['monto'], '10.00')
+
+    def test_ingresos_diarios_incluye_comentarios(self):
+        ComentarioDia.objects.create(
+            fecha=self.hoy, texto='Venta suelta', monto_efectivo='12.00', creado_por=self.usuario,
+        )
+
+        resumen = resumen_financiero_dashboard(self.hoy)
+        dias = resumen['ingresos_diarios_30_dias']
+
+        self.assertEqual(dias[-1]['efectivo'], '12.00')
+
+    def test_totales_30_dias_incluyen_comentarios(self):
+        ComentarioDia.objects.create(
+            fecha=self.hoy, texto='Venta suelta', monto_yape='8.00', creado_por=self.usuario,
+        )
+
+        resumen = resumen_financiero_dashboard(self.hoy)
+
+        self.assertEqual(resumen['total_yape_30_dias'], '8.00')
+
+    def test_ingresos_por_cancha_no_incluye_comentarios(self):
+        ComentarioDia.objects.create(
+            fecha=self.hoy, texto='Venta suelta', monto_efectivo='99.00', creado_por=self.usuario,
+        )
+
+        resumen = resumen_financiero_dashboard(self.hoy)
+        por_cancha = {fila['cancha']: fila['monto'] for fila in resumen['ingresos_por_cancha_30_dias']}
+
+        self.assertEqual(por_cancha['Cancha 1'], '0.00')
+        self.assertEqual(por_cancha['Campo completo'], '0.00')
 
 
 class GuardarPagoTest(TestCase):

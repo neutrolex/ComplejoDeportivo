@@ -4,7 +4,7 @@ from decimal import Decimal
 from django.db.models import Sum
 from django.db.models.functions import TruncDate
 
-from .models import Modalidad, Pago, Reserva, ReservaCancha, Tarifa
+from .models import ComentarioDia, Modalidad, Pago, Reserva, ReservaCancha, Tarifa
 
 
 def fecha_valida(texto):
@@ -91,34 +91,49 @@ def nombre_academia_visible(reserva):
 
 
 def _monto_y_conteo(desde, hasta):
-    """Suma de pagos (por la fecha LOCAL de fecha_hora) entre desde y hasta
-    (ambas inclusive), y cantidad de reservas distintas que tuvieron al
-    menos un pago en ese rango. Sigue la misma regla que resumen-pagos:
+    """Suma de pagos + comentarios (por su fecha de negocio) entre desde y
+    hasta (ambas inclusive), y cantidad de reservas distintas que tuvieron
+    al menos un pago en ese rango. Sigue la misma regla que resumen-pagos:
     tambien cuenta pagos de reservas canceladas, porque esa plata entro
-    igual a la caja ese dia."""
+    igual a la caja ese dia. Un ComentarioDia no esta ligado a ninguna
+    reserva, asi que solo aporta al monto, no al conteo de reservas."""
     pagos = Pago.objects.filter(fecha_hora__date__gte=desde, fecha_hora__date__lte=hasta)
-    monto = pagos.aggregate(t=Sum('monto'))['t'] or Decimal('0.00')
+    monto_pagos = pagos.aggregate(t=Sum('monto'))['t'] or Decimal('0.00')
     reservas = pagos.values('reserva_id').distinct().count()
-    return monto, reservas
+
+    comentarios = ComentarioDia.objects.filter(fecha__gte=desde, fecha__lte=hasta).aggregate(
+        yape=Sum('monto_yape'), efectivo=Sum('monto_efectivo'),
+    )
+    monto_comentarios = (comentarios['yape'] or Decimal('0.00')) + (comentarios['efectivo'] or Decimal('0.00'))
+
+    return monto_pagos + monto_comentarios, reservas
 
 
 def _ingresos_diarios(desde, hasta):
     """Lista de dicts {fecha, yape, efectivo} para cada dia entre desde y
-    hasta (ambas inclusive), en orden cronologico, con '0.00' en los dias
-    sin pagos."""
-    filas = (
+    hasta (ambas inclusive), sumando Pago + ComentarioDia, en orden
+    cronologico, con '0.00' en los dias sin ninguno de los dos."""
+    filas_pago = (
         Pago.objects.filter(fecha_hora__date__gte=desde, fecha_hora__date__lte=hasta)
         .annotate(dia=TruncDate('fecha_hora'))
         .values('dia', 'metodo')
         .annotate(total=Sum('monto'))
+    )
+    filas_comentario = (
+        ComentarioDia.objects.filter(fecha__gte=desde, fecha__lte=hasta)
+        .values('fecha')
+        .annotate(yape=Sum('monto_yape'), efectivo=Sum('monto_efectivo'))
     )
     cantidad_dias = (hasta - desde).days + 1
     por_dia = {
         desde + timedelta(days=i): {'yape': Decimal('0.00'), 'efectivo': Decimal('0.00')}
         for i in range(cantidad_dias)
     }
-    for fila in filas:
+    for fila in filas_pago:
         por_dia[fila['dia']][fila['metodo']] = fila['total']
+    for fila in filas_comentario:
+        por_dia[fila['fecha']]['yape'] += fila['yape'] or Decimal('0.00')
+        por_dia[fila['fecha']]['efectivo'] += fila['efectivo'] or Decimal('0.00')
     return [
         {'fecha': dia.isoformat(), 'yape': str(datos['yape']), 'efectivo': str(datos['efectivo'])}
         for dia, datos in sorted(por_dia.items())
@@ -171,6 +186,11 @@ def resumen_financiero_dashboard(hoy):
     total_efectivo_30d = (
         pagos_30_dias.filter(metodo=Pago.Metodo.EFECTIVO).aggregate(t=Sum('monto'))['t'] or Decimal('0.00')
     )
+    comentarios_30_dias = ComentarioDia.objects.filter(
+        fecha__gte=desde_30_dias, fecha__lte=hoy,
+    ).aggregate(yape=Sum('monto_yape'), efectivo=Sum('monto_efectivo'))
+    total_yape_30d += comentarios_30_dias['yape'] or Decimal('0.00')
+    total_efectivo_30d += comentarios_30_dias['efectivo'] or Decimal('0.00')
 
     return {
         'hoy': {'monto': str(monto_hoy), 'reservas': reservas_hoy},

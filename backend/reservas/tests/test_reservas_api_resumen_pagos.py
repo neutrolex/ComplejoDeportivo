@@ -2,7 +2,7 @@ from datetime import time
 
 from rest_framework.test import APIClient, APITestCase
 
-from reservas.models import Modalidad, Pago, Reserva
+from reservas.models import ComentarioDia, Modalidad, Pago, Reserva
 from usuarios.models import UsuarioInterno
 
 
@@ -87,3 +87,22 @@ class ResumenPagosApiTest(APITestCase):
 
         self.assertEqual(total_hoy.data['total_efectivo'], '40.00')
         self.assertEqual(total_sabado.data['total_efectivo'], '0.00')
+
+    def test_suma_tambien_los_comentarios_del_dia(self):
+        ComentarioDia.objects.create(
+            fecha='2026-08-20', texto='Venta suelta', monto_efectivo='15.00', creado_por=self.usuario,
+        )
+
+        response = self.client.get('/api/reservas/resumen-pagos/', {'fecha': '2026-08-20'})
+
+        self.assertEqual(response.data['total_efectivo'], '15.00')
+        self.assertEqual(response.data['total_general'], '15.00')
+
+    def test_no_suma_comentarios_de_otro_dia(self):
+        ComentarioDia.objects.create(
+            fecha='2026-08-21', texto='Otro dia', monto_efectivo='15.00', creado_por=self.usuario,
+        )
+
+        response = self.client.get('/api/reservas/resumen-pagos/', {'fecha': '2026-08-20'})
+
+        self.assertEqual(response.data['total_efectivo'], '0.00')

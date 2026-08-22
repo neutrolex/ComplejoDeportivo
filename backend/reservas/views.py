@@ -182,6 +182,13 @@ class ReservaViewSet(viewsets.ViewSet):
         total_yape = pagos_del_dia.filter(
             metodo=Pago.Metodo.YAPE,
         ).aggregate(t=Sum('monto'))['t'] or Decimal('0.00')
+
+        comentarios_del_dia = ComentarioDia.objects.filter(fecha=fecha).aggregate(
+            yape=Sum('monto_yape'), efectivo=Sum('monto_efectivo'),
+        )
+        total_efectivo += comentarios_del_dia['efectivo'] or Decimal('0.00')
+        total_yape += comentarios_del_dia['yape'] or Decimal('0.00')
+
         return Response({
             'total_efectivo': str(total_efectivo),
             'total_yape': str(total_yape),
