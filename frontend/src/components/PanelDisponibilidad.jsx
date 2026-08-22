@@ -1,9 +1,29 @@
 import { useEffect, useState } from 'react'
 import { apiFetch } from '../api'
 import { formatearFecha } from '../utils/fecha'
+import { FUENTE, TOKENS, estiloTarjeta } from '../theme'
 import ReservaDetalle from './ReservaDetalle'
 import Observaciones from './Observaciones'
 import ResumenPagos from './ResumenPagos'
+
+const estiloEncabezado = {
+  padding: '10px 16px', textAlign: 'left', fontSize: 11, textTransform: 'uppercase',
+  color: TOKENS.textoSuave, fontWeight: 600,
+}
+
+function celdaEstilo(estado) {
+  const paletas = {
+    libre: { bg: TOKENS.libreFondo, fg: TOKENS.libreTexto, cursor: 'pointer' },
+    ocupado: { bg: TOKENS.ocupadoFondo, fg: TOKENS.ocupadoTexto, cursor: 'pointer' },
+    bloqueada: { bg: TOKENS.fondoSuave, fg: TOKENS.textoTenue, cursor: 'default' },
+  }
+  const p = paletas[estado]
+  return {
+    background: p.bg, color: p.fg, cursor: p.cursor,
+    borderRadius: 8, padding: '7px 10px', fontSize: 12.5, fontWeight: 600,
+    textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+  }
+}
 
 function calcularHoras(tarifas) {
   if (tarifas.length === 0) return []
@@ -131,84 +151,94 @@ export default function PanelDisponibilidad() {
   const horas = calcularHoras(tarifas)
 
   return (
-    <div>
-      <label htmlFor="fecha">Fecha</label>
-      <input
-        id="fecha"
-        type="date"
-        value={fecha}
-        onChange={(e) => setFecha(e.target.value)}
-      />
+    <div style={{ fontFamily: FUENTE }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <h2 style={{ margin: 0, fontSize: 22, color: TOKENS.texto }}>Reservas</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <label htmlFor="fecha" style={{ fontSize: 13, color: TOKENS.textoSuave }}>Fecha</label>
+          <input
+            id="fecha"
+            type="date"
+            value={fecha}
+            onChange={(e) => setFecha(e.target.value)}
+            style={{
+              border: `1px solid ${TOKENS.bordeInput}`, borderRadius: 8, padding: '7px 10px',
+              fontSize: 13, fontFamily: FUENTE, color: TOKENS.texto, background: 'white', colorScheme: 'light',
+            }}
+          />
+        </div>
+      </div>
 
       {cargando && <p>Cargando...</p>}
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+      {error && <p style={{ color: TOKENS.peligro }}>{error}</p>}
 
       {!cargando && !error && (
-        <table border="1" cellPadding="4">
-          <thead>
-            <tr>
-              <th>Hora</th>
-              {canchas.map((c) => (
-                <th key={c.id}>Cancha {c.numero}</th>
-              ))}
-              <th>Campo completo</th>
-            </tr>
-          </thead>
-          <tbody>
-            {horas.map((hora) => (
-              <tr key={hora}>
-                <td>{horaTexto(hora)}</td>
-                {canchas.map((c) => {
-                  const reserva = reservaEnCelda(c.id, hora)
-                  return (
-                    <td
-                      key={c.id}
-                      style={{
-                        background: reserva ? '#f8b4b4' : '#b4f8c8',
-                        cursor: reserva ? 'default' : 'pointer',
-                      }}
-                      onClick={() => {
-                        if (reserva) {
-                          setReservaSeleccionada(reserva)
-                        } else {
-                          reservarCelda(c.id, hora)
-                        }
-                      }}
-                    >
-                      {reserva ? reserva.cliente_nombre : 'Libre'}
-                    </td>
-                  )
-                })}
-                {(() => {
-                  const completa = reservaCompletaEnHora(hora)
-                  const hayCanchaOcupada = canchas.some((c) => reservaEnCelda(c.id, hora))
-                  return (
-                    <td
-                      style={{
-                        background: completa ? '#f8b4b4' : hayCanchaOcupada ? '#dddddd' : '#b4f8c8',
-                        cursor: completa || hayCanchaOcupada ? 'default' : 'pointer',
-                      }}
-                      onClick={() => {
-                        if (completa) {
-                          setReservaSeleccionada(completa)
-                        } else if (!hayCanchaOcupada) {
-                          reservarCampoCompleto(hora)
-                        }
-                      }}
-                    >
-                      {completa ? completa.cliente_nombre : hayCanchaOcupada ? '-' : 'Reservar todo'}
-                    </td>
-                  )
-                })()}
+        <div style={{ ...estiloTarjeta, padding: 0, overflow: 'hidden', marginBottom: 20 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
+              <tr style={{ background: TOKENS.fondoSuave, borderBottom: `1px solid ${TOKENS.borde}` }}>
+                <th style={estiloEncabezado}>Hora</th>
+                {canchas.map((c) => (
+                  <th key={c.id} style={estiloEncabezado}>Cancha {c.numero}</th>
+                ))}
+                <th style={estiloEncabezado}>Campo completo</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {horas.map((hora) => {
+                const completa = reservaCompletaEnHora(hora)
+                const hayCanchaOcupada = canchas.some((c) => reservaEnCelda(c.id, hora))
+                return (
+                  <tr key={hora} style={{ borderBottom: `1px solid ${TOKENS.bordeSuave}` }}>
+                    <td style={{ padding: '10px 16px', color: TOKENS.textoSuave }}>{horaTexto(hora)}</td>
+                    {canchas.map((c) => {
+                      const reserva = reservaEnCelda(c.id, hora)
+                      return (
+                        <td key={c.id} style={{ padding: '6px 8px' }}>
+                          <div
+                            style={celdaEstilo(reserva ? 'ocupado' : 'libre')}
+                            onClick={() => {
+                              if (reserva) {
+                                setReservaSeleccionada(reserva)
+                              } else {
+                                reservarCelda(c.id, hora)
+                              }
+                            }}
+                          >
+                            {reserva ? reserva.cliente_nombre : 'Libre'}
+                          </div>
+                        </td>
+                      )
+                    })}
+                    <td style={{ padding: '6px 8px' }}>
+                      <div
+                        style={celdaEstilo(completa ? 'ocupado' : hayCanchaOcupada ? 'bloqueada' : 'libre')}
+                        onClick={() => {
+                          if (completa) {
+                            setReservaSeleccionada(completa)
+                          } else if (!hayCanchaOcupada) {
+                            reservarCampoCompleto(hora)
+                          }
+                        }}
+                      >
+                        {completa ? completa.cliente_nombre : hayCanchaOcupada ? '-' : 'Reservar todo'}
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
 
-      <Observaciones key={`observaciones-${fecha}`} fecha={fecha} />
+      <div style={{ ...estiloTarjeta, marginBottom: 20 }}>
+        <Observaciones key={`observaciones-${fecha}`} fecha={fecha} />
+      </div>
 
-      <ResumenPagos key={`resumen-pagos-${fecha}`} fecha={fecha} />
+      <div style={estiloTarjeta}>
+        <ResumenPagos key={`resumen-pagos-${fecha}`} fecha={fecha} />
+      </div>
 
       {reservaSeleccionada && (
         <ReservaDetalle
