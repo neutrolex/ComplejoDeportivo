@@ -1,6 +1,10 @@
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
+from decimal import Decimal
 
-from .models import Reserva, ReservaCancha, Tarifa
+from django.db.models import Sum
+from django.db.models.functions import TruncDate
+
+from .models import Modalidad, Pago, Reserva, ReservaCancha, Tarifa
 
 
 def fecha_valida(texto):
@@ -62,3 +66,97 @@ def nombre_academia_visible(reserva):
     if reserva.academia_id and reserva.academia.permiso_mostrar:
         return reserva.academia.nombre
     return None
+
+
+def _monto_y_conteo(desde, hasta):
+    """Suma de pagos (por la fecha LOCAL de fecha_hora) entre desde y hasta
+    (ambas inclusive), y cantidad de reservas distintas que tuvieron al
+    menos un pago en ese rango. Sigue la misma regla que resumen-pagos:
+    tambien cuenta pagos de reservas canceladas, porque esa plata entro
+    igual a la caja ese dia."""
+    pagos = Pago.objects.filter(fecha_hora__date__gte=desde, fecha_hora__date__lte=hasta)
+    monto = pagos.aggregate(t=Sum('monto'))['t'] or Decimal('0.00')
+    reservas = pagos.values('reserva_id').distinct().count()
+    return monto, reservas
+
+
+def _ingresos_diarios(desde, hasta):
+    """Lista de dicts {fecha, yape, efectivo} para cada dia entre desde y
+    hasta (ambas inclusive), en orden cronologico, con '0.00' en los dias
+    sin pagos."""
+    filas = (
+        Pago.objects.filter(fecha_hora__date__gte=desde, fecha_hora__date__lte=hasta)
+        .annotate(dia=TruncDate('fecha_hora'))
+        .values('dia', 'metodo')
+        .annotate(total=Sum('monto'))
+    )
+    cantidad_dias = (hasta - desde).days + 1
+    por_dia = {
+        desde + timedelta(days=i): {'yape': Decimal('0.00'), 'efectivo': Decimal('0.00')}
+        for i in range(cantidad_dias)
+    }
+    for fila in filas:
+        por_dia[fila['dia']][fila['metodo']] = fila['total']
+    return [
+        {'fecha': dia.isoformat(), 'yape': str(datos['yape']), 'efectivo': str(datos['efectivo'])}
+        for dia, datos in sorted(por_dia.items())
+    ]
+
+
+def _ingresos_por_cancha(desde, hasta):
+    """Ingresos por cancha entre desde y hasta (ambas inclusive). Una
+    reserva de campo completo suma entera al bucket 'Campo completo', no a
+    las 4 canchas individuales -- son 4 filas en reserva_canchas pero un
+    solo pago de negocio."""
+    pagos = (
+        Pago.objects.filter(fecha_hora__date__gte=desde, fecha_hora__date__lte=hasta)
+        .select_related('reserva')
+        .prefetch_related('reserva__canchas_asignadas__cancha')
+    )
+    totales = {1: Decimal('0.00'), 2: Decimal('0.00'), 3: Decimal('0.00'), 4: Decimal('0.00')}
+    campo_completo = Decimal('0.00')
+    for pago in pagos:
+        reserva = pago.reserva
+        if reserva.modalidad == Modalidad.COMPLETO:
+            campo_completo += pago.monto
+        else:
+            for rc in reserva.canchas_asignadas.all():
+                totales[rc.cancha.numero] += pago.monto
+    return [
+        {'cancha': f'Cancha {n}', 'monto': str(totales[n])} for n in (1, 2, 3, 4)
+    ] + [{'cancha': 'Campo completo', 'monto': str(campo_completo)}]
+
+
+def resumen_financiero_dashboard(hoy):
+    """Arma todo lo que necesita el dashboard financiero en una sola
+    pasada: monto+conteo de reservas de hoy/ayer/esta semana/este mes,
+    totales por metodo de pago de los ultimos 30 dias, serie diaria de 30
+    dias, e ingresos por cancha de los ultimos 30 dias. 'hoy' es un date
+    (no se calcula aca) para que el llamador lo controle -- facilita
+    testear con una fecha fija."""
+    ayer = hoy - timedelta(days=1)
+    lunes_de_esta_semana = hoy - timedelta(days=hoy.weekday())
+    primero_del_mes = hoy.replace(day=1)
+    desde_30_dias = hoy - timedelta(days=29)
+
+    monto_hoy, reservas_hoy = _monto_y_conteo(hoy, hoy)
+    monto_ayer, reservas_ayer = _monto_y_conteo(ayer, ayer)
+    monto_semana, reservas_semana = _monto_y_conteo(lunes_de_esta_semana, hoy)
+    monto_mes, reservas_mes = _monto_y_conteo(primero_del_mes, hoy)
+
+    pagos_30_dias = Pago.objects.filter(fecha_hora__date__gte=desde_30_dias, fecha_hora__date__lte=hoy)
+    total_yape_30d = pagos_30_dias.filter(metodo=Pago.Metodo.YAPE).aggregate(t=Sum('monto'))['t'] or Decimal('0.00')
+    total_efectivo_30d = (
+        pagos_30_dias.filter(metodo=Pago.Metodo.EFECTIVO).aggregate(t=Sum('monto'))['t'] or Decimal('0.00')
+    )
+
+    return {
+        'hoy': {'monto': str(monto_hoy), 'reservas': reservas_hoy},
+        'ayer': {'monto': str(monto_ayer), 'reservas': reservas_ayer},
+        'esta_semana': {'monto': str(monto_semana), 'reservas': reservas_semana},
+        'este_mes': {'monto': str(monto_mes), 'reservas': reservas_mes},
+        'total_yape_30_dias': str(total_yape_30d),
+        'total_efectivo_30_dias': str(total_efectivo_30d),
+        'ingresos_diarios_30_dias': _ingresos_diarios(desde_30_dias, hoy),
+        'ingresos_por_cancha_30_dias': _ingresos_por_cancha(desde_30_dias, hoy),
+    }

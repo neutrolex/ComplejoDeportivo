@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from django.db import transaction
 from django.db.models import Sum
+from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.generics import ListAPIView
@@ -19,7 +20,14 @@ from .serializers import (
     ReservaSerializer,
     TarifaSerializer,
 )
-from .servicios import canchas_ocupadas, fecha_valida, horas_operativas, nombre_academia_visible, obtener_tarifa
+from .servicios import (
+    canchas_ocupadas,
+    fecha_valida,
+    horas_operativas,
+    nombre_academia_visible,
+    obtener_tarifa,
+    resumen_financiero_dashboard,
+)
 
 
 class AcademiaListView(ListAPIView):
@@ -160,6 +168,11 @@ class ReservaViewSet(viewsets.ViewSet):
             'total_yape': str(total_yape),
             'total_general': str(total_efectivo + total_yape),
         })
+
+    @action(detail=False, methods=['get'], url_path='dashboard-financiero')
+    def dashboard_financiero(self, request):
+        hoy = timezone.localdate()
+        return Response(resumen_financiero_dashboard(hoy))
 
 
 class DisponibilidadPublicaView(APIView):
