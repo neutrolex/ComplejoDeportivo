@@ -2,7 +2,13 @@ from decimal import Decimal
 
 from rest_framework import serializers
 
-from .models import Cancha, Modalidad, Pago, Reserva, Tarifa
+from .models import Academia, Cancha, Modalidad, Pago, Reserva, Tarifa
+
+
+class AcademiaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Academia
+        fields = ['id', 'nombre']
 
 
 class CanchaSerializer(serializers.ModelSerializer):
@@ -49,6 +55,9 @@ class NuevaReservaSerializer(serializers.Serializer):
     # y para academias (ej. "Talentos") - sin campo, estado ni tabla
     # especial para ninguno de esos dos casos.
     cliente_nombre = serializers.CharField(max_length=150)
+    academia = serializers.PrimaryKeyRelatedField(
+        queryset=Academia.objects.all(), required=False, allow_null=True, default=None,
+    )
     modalidad = serializers.ChoiceField(choices=Modalidad.choices)
     canchas = serializers.PrimaryKeyRelatedField(
         queryset=Cancha.objects.filter(activa=True), many=True,

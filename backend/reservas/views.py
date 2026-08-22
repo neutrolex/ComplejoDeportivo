@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 from decimal import Decimal
 
 from django.db import transaction
@@ -6,19 +6,26 @@ from django.db.models import Sum
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.generics import ListAPIView
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Cancha, ObservacionDia, Pago, Reserva, ReservaCancha, Tarifa
+from .models import Academia, Cancha, Modalidad, ObservacionDia, Pago, Reserva, ReservaCancha, Tarifa
 from .serializers import (
+    AcademiaSerializer,
     CanchaSerializer,
     NuevaReservaSerializer,
     PagoSerializer,
     ReservaSerializer,
     TarifaSerializer,
 )
-from .servicios import canchas_ocupadas, fecha_valida, obtener_tarifa
+from .servicios import canchas_ocupadas, fecha_valida, horas_operativas, nombre_academia_visible, obtener_tarifa
+
+
+class AcademiaListView(ListAPIView):
+    queryset = Academia.objects.all()
+    serializer_class = AcademiaSerializer
+    permission_classes = [IsAuthenticated]
 
 
 class CanchaListView(ListAPIView):
@@ -90,6 +97,7 @@ class ReservaViewSet(viewsets.ViewSet):
                 hora_inicio=datos['hora_inicio'],
                 hora_fin=hora_fin,
                 precio_total=tarifa.precio_por_hora,
+                academia=datos.get('academia'),
                 asignada_por=request.user,
             )
             ReservaCancha.objects.bulk_create([
@@ -152,6 +160,81 @@ class ReservaViewSet(viewsets.ViewSet):
             'total_yape': str(total_yape),
             'total_general': str(total_efectivo + total_yape),
         })
+
+
+class DisponibilidadPublicaView(APIView):
+    """Sin login: la usa la web publica de horarios. Nunca serializa
+    cliente_nombre, montos ni metodos de pago -- solo libre/ocupado y,
+    cuando corresponde, el nombre de una academia con permiso de
+    mostrarse."""
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        fecha = request.query_params.get('fecha')
+        if not fecha:
+            return Response(
+                {'detail': 'Falta el parametro fecha.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not fecha_valida(fecha):
+            return Response(
+                {'detail': 'Formato de fecha invalido, use YYYY-MM-DD.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        canchas = list(Cancha.objects.filter(activa=True).order_by('numero'))
+        reservas = (
+            Reserva.objects.filter(fecha=fecha)
+            .exclude(estado=Reserva.Estado.CANCELADA)
+            .select_related('academia')
+            .prefetch_related('canchas_asignadas')
+        )
+
+        horas_resultado = []
+        for hora in horas_operativas():
+            hora_texto = f'{hora:02d}:00'
+            reservas_hora = [r for r in reservas if r.hora_inicio == time(hora, 0)]
+
+            ocupacion_por_cancha = {}
+            for r in reservas_hora:
+                for rc in r.canchas_asignadas.all():
+                    ocupacion_por_cancha[rc.cancha_id] = r
+
+            canchas_estado = {}
+            for cancha in canchas:
+                reserva_de_la_cancha = ocupacion_por_cancha.get(cancha.id)
+                if reserva_de_la_cancha:
+                    canchas_estado[str(cancha.numero)] = {
+                        'estado': 'ocupado',
+                        'academia': nombre_academia_visible(reserva_de_la_cancha),
+                    }
+                else:
+                    canchas_estado[str(cancha.numero)] = {'estado': 'libre'}
+
+            completo = next(
+                (r for r in reservas_hora if r.modalidad == Modalidad.COMPLETO), None,
+            )
+            todas_las_canchas_ocupadas = bool(canchas) and all(
+                canchas_estado[str(c.numero)]['estado'] == 'ocupado' for c in canchas
+            )
+            if completo:
+                campo_completo_estado = {
+                    'estado': 'ocupado',
+                    'academia': nombre_academia_visible(completo),
+                }
+            elif todas_las_canchas_ocupadas:
+                campo_completo_estado = {'estado': 'ocupado', 'academia': None}
+            else:
+                campo_completo_estado = {'estado': 'libre'}
+
+            horas_resultado.append({
+                'hora': hora_texto,
+                'canchas': canchas_estado,
+                'campo_completo': campo_completo_estado,
+            })
+
+        return Response({'fecha': fecha, 'horas': horas_resultado})
 
 
 class ObservacionDiaView(APIView):

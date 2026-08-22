@@ -1,15 +1,9 @@
 import { useEffect, useState } from 'react'
 import { apiFetch } from '../api'
+import { formatearFecha } from '../utils/fecha'
 import ReservaDetalle from './ReservaDetalle'
 import Observaciones from './Observaciones'
 import ResumenPagos from './ResumenPagos'
-
-function formatearFecha(fecha) {
-  const year = fecha.getFullYear()
-  const month = String(fecha.getMonth() + 1).padStart(2, '0')
-  const day = String(fecha.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
 
 function calcularHoras(tarifas) {
   if (tarifas.length === 0) return []
@@ -26,6 +20,17 @@ function horaTexto(hora) {
   return `${String(hora).padStart(2, '0')}:00`
 }
 
+function preguntarAcademia(academias) {
+  if (academias.length === 0) return null
+  const opciones = academias.map((a, i) => `${i + 1}. ${a.nombre}`).join('\n')
+  const respuesta = window.prompt(
+    `¿Es una academia? Escribe el numero de la lista, o dejalo vacio si es un cliente:\n${opciones}`,
+  )
+  if (!respuesta) return null
+  const indice = Number(respuesta) - 1
+  return academias[indice] ? academias[indice].id : null
+}
+
 export default function PanelDisponibilidad() {
   const [fecha, setFecha] = useState(formatearFecha(new Date()))
   const [canchas, setCanchas] = useState([])
@@ -34,6 +39,7 @@ export default function PanelDisponibilidad() {
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
   const [reservaSeleccionada, setReservaSeleccionada] = useState(null)
+  const [academias, setAcademias] = useState([])
 
   useEffect(() => {
     let vigente = true
@@ -42,15 +48,17 @@ export default function PanelDisponibilidad() {
       setError('')
       setReservaSeleccionada(null)
       try {
-        const [canchasData, tarifasData, reservasData] = await Promise.all([
+        const [canchasData, tarifasData, reservasData, academiasData] = await Promise.all([
           apiFetch('/canchas/'),
           apiFetch('/tarifas/'),
           apiFetch(`/reservas/?fecha=${fecha}`),
+          apiFetch('/academias/'),
         ])
         if (!vigente) return
         setCanchas(canchasData)
         setTarifas(tarifasData)
         setReservas(reservasData)
+        setAcademias(academiasData)
       } catch (err) {
         if (!vigente) return
         setError(err.message)
@@ -74,6 +82,7 @@ export default function PanelDisponibilidad() {
   async function reservarCelda(canchaId, hora) {
     const cliente = window.prompt('Nombre del cliente para esta hora:')
     if (!cliente) return
+    const academiaId = preguntarAcademia(academias)
     try {
       const nueva = await apiFetch('/reservas/', {
         method: 'POST',
@@ -83,6 +92,7 @@ export default function PanelDisponibilidad() {
           cliente_nombre: cliente,
           modalidad: 'individual',
           canchas: [canchaId],
+          academia: academiaId,
         }),
       })
       setReservas((anteriores) => [...anteriores, nueva])
@@ -99,6 +109,7 @@ export default function PanelDisponibilidad() {
   async function reservarCampoCompleto(hora) {
     const cliente = window.prompt('Nombre del cliente (campo completo):')
     if (!cliente) return
+    const academiaId = preguntarAcademia(academias)
     try {
       const nueva = await apiFetch('/reservas/', {
         method: 'POST',
@@ -108,6 +119,7 @@ export default function PanelDisponibilidad() {
           cliente_nombre: cliente,
           modalidad: 'completo',
           canchas: canchas.map((c) => c.id),
+          academia: academiaId,
         }),
       })
       setReservas((anteriores) => [...anteriores, nueva])
