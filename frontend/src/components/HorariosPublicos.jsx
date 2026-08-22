@@ -1,10 +1,20 @@
 import { useEffect, useState } from 'react'
-import { apiFetch } from '../api'
 import { NOMBRES_DIA, formatearFecha, lunesDeLaSemana, sumarDias } from '../utils/fecha'
 
 const NOMBRE_COMPLEJO = 'Complejo Deportivo la 7'
 const WHATSAPP_URL = 'https://wa.me/51981154002'
 const WHATSAPP_TEXTO = '+51 981 154 002'
+
+const BASE_URL = import.meta.env.VITE_API_URL
+
+async function obtenerDisponibilidadPublica(fecha) {
+  const respuesta = await fetch(`${BASE_URL}/publico/disponibilidad/?fecha=${fecha}`)
+  if (!respuesta.ok) {
+    const cuerpo = await respuesta.json().catch(() => ({}))
+    throw new Error(cuerpo.detail || `Error ${respuesta.status}`)
+  }
+  return respuesta.json()
+}
 
 const COLORES = {
   libre: { bg: '#DCF7E3', fg: '#1B7A43' },
@@ -56,7 +66,7 @@ export default function HorariosPublicos() {
       setCargando(true)
       setError('')
       try {
-        const data = await apiFetch(`/publico/disponibilidad/?fecha=${fecha}`)
+        const data = await obtenerDisponibilidadPublica(fecha)
         if (!vigente) return
         setDisponibilidad(data)
       } catch (err) {
@@ -79,7 +89,11 @@ export default function HorariosPublicos() {
   })
 
   return (
-    <div style={{ minHeight: '100vh', background: '#FAFAFB', color: '#1F2430', fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif' }}>
+    <div style={{
+      minHeight: '100vh', width: '100vw', position: 'relative', left: '50%', marginLeft: '-50vw',
+      background: '#FAFAFB', color: '#1F2430', textAlign: 'left',
+      fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif',
+    }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 32px', borderBottom: '1px solid #E4E6EA' }}>
         <div style={{ fontWeight: 700, fontSize: 18 }}>{NOMBRE_COMPLEJO}</div>
         <a
@@ -114,14 +128,14 @@ export default function HorariosPublicos() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
             <button
               onClick={() => setFecha(sumarDias(fecha, -7))}
-              style={{ width: 34, height: 34, borderRadius: 9, border: '1px solid #D8DADF', background: 'white', fontSize: 15, cursor: 'pointer' }}
+              style={{ width: 34, height: 34, borderRadius: 9, border: '1px solid #D8DADF', background: 'white', color: '#1F2430', fontSize: 15, cursor: 'pointer' }}
             >
               ‹
             </button>
             <div style={{ fontWeight: 600, fontSize: 14 }}>{formatearRangoSemana(lunes)}</div>
             <button
               onClick={() => setFecha(sumarDias(fecha, 7))}
-              style={{ width: 34, height: 34, borderRadius: 9, border: '1px solid #D8DADF', background: 'white', fontSize: 15, cursor: 'pointer' }}
+              style={{ width: 34, height: 34, borderRadius: 9, border: '1px solid #D8DADF', background: 'white', color: '#1F2430', fontSize: 15, cursor: 'pointer' }}
             >
               ›
             </button>
@@ -178,13 +192,16 @@ export default function HorariosPublicos() {
                   style={{ display: 'grid', gridTemplateColumns: COLUMNAS_GRID, alignItems: 'center', padding: '8px 14px', borderBottom: '1px solid #EEF0F2' }}
                 >
                   <div style={{ fontSize: 12.5 }}>{h.hora}</div>
-                  {['1', '2', '3', '4'].map((numero) => (
-                    <div key={numero} style={{ padding: '0 4px' }}>
-                      <div style={celdaEstilo(estadoDeLaCelda(h.canchas[numero]))}>
-                        {textoDeLaCelda(h.canchas[numero])}
+                  {['1', '2', '3', '4'].map((numero) => {
+                    const celda = h.canchas[numero] ?? { estado: 'libre' }
+                    return (
+                      <div key={numero} style={{ padding: '0 4px' }}>
+                        <div style={celdaEstilo(estadoDeLaCelda(celda))}>
+                          {textoDeLaCelda(celda)}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                   <div style={{ padding: '0 4px' }}>
                     <div style={celdaEstilo(estadoDeLaCelda(h.campo_completo))}>
                       {textoDeLaCelda(h.campo_completo)}
