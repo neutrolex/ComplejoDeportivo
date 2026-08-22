@@ -4,6 +4,7 @@ import { formatearFecha, formatearFechaLarga } from '../utils/fecha'
 import { Badge } from './ui/badge'
 import ComentariosDia from './ComentariosDia'
 import ReservaDialogo from './ReservaDialogo'
+import TotalDelDia from './TotalDelDia'
 
 function calcularHoras(tarifas) {
   if (tarifas.length === 0) return []
@@ -219,6 +220,8 @@ export default function PanelDisponibilidad() {
           </table>
         </div>
           )}
+
+          <TotalDelDia key={`total-${fecha}`} fecha={fecha} />
         </div>
 
         <div className="w-80 shrink-0">
