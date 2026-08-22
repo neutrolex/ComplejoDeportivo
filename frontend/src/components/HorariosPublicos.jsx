@@ -97,7 +97,7 @@ export default function HorariosPublicos() {
       </div>
 
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '40px 32px 24px', textAlign: 'center' }}>
-        <h1 style={{ fontSize: 28, fontWeight: 700, margin: '0 0 8px' }}>Encontrá tu horario libre al instante</h1>
+        <h1 style={{ fontSize: 28, fontWeight: 700, margin: '0 0 8px', color: '#1F2430' }}>Encontrá tu horario libre al instante</h1>
         <p style={{ fontSize: 14, color: '#6B7280', margin: 0 }}>
           Disponibilidad de nuestras 4 canchas, actualizada por el equipo del complejo.
         </p>
