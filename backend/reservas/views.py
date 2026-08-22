@@ -112,6 +112,10 @@ class ReservaViewSet(viewsets.ViewSet):
                 ReservaCancha(reserva=reserva, cancha_id=cancha_id)
                 for cancha_id in cancha_ids
             ])
+            if datos['efectivo'] > 0:
+                guardar_pago(reserva, Pago.Metodo.EFECTIVO, datos['efectivo'], request.user)
+            if datos['yape'] > 0:
+                guardar_pago(reserva, Pago.Metodo.YAPE, datos['yape'], request.user)
 
         return Response(ReservaSerializer(reserva).data, status=status.HTTP_201_CREATED)
 

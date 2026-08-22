@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from rest_framework.test import APIClient, APITestCase
 
 from reservas.models import Academia, Cancha, Reserva, ReservaCancha
@@ -147,3 +149,36 @@ class CrearReservaApiTest(APITestCase):
         self.assertEqual(response.status_code, 201)
         reserva = Reserva.objects.get(id=response.data['id'])
         self.assertIsNone(reserva.academia_id)
+
+    def test_crea_reserva_con_pago_yape_y_efectivo(self):
+        cancha = Cancha.objects.get(numero=1)
+        response = self.client.post('/api/reservas/', {
+            'fecha': '2026-08-20', 'hora_inicio': '10:00', 'cliente_nombre': 'Juan',
+            'modalidad': 'individual', 'canchas': [cancha.id],
+            'yape': '30.00', 'efectivo': '20.00',
+        }, format='json')
+
+        self.assertEqual(response.status_code, 201)
+        reserva = Reserva.objects.get(id=response.data['id'])
+        self.assertEqual(reserva.pagos.count(), 2)
+        self.assertEqual(reserva.pagos.get(metodo='yape').monto, Decimal('30.00'))
+        self.assertEqual(reserva.pagos.get(metodo='efectivo').monto, Decimal('20.00'))
+
+    def test_crea_reserva_sin_pago_no_crea_pagos(self):
+        cancha = Cancha.objects.get(numero=2)
+        response = self.client.post('/api/reservas/', {
+            'fecha': '2026-08-20', 'hora_inicio': '10:00', 'cliente_nombre': 'Maria',
+            'modalidad': 'individual', 'canchas': [cancha.id],
+        }, format='json')
+
+        self.assertEqual(response.status_code, 201)
+        reserva = Reserva.objects.get(id=response.data['id'])
+        self.assertEqual(reserva.pagos.count(), 0)
+
+    def test_yape_negativo_devuelve_400(self):
+        cancha = Cancha.objects.get(numero=3)
+        response = self.client.post('/api/reservas/', {
+            'fecha': '2026-08-20', 'hora_inicio': '10:00', 'cliente_nombre': 'Pedro',
+            'modalidad': 'individual', 'canchas': [cancha.id], 'yape': '-5.00',
+        }, format='json')
+        self.assertEqual(response.status_code, 400)

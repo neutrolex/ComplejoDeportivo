@@ -58,6 +58,12 @@ class NuevaReservaSerializer(serializers.Serializer):
     academia = serializers.PrimaryKeyRelatedField(
         queryset=Academia.objects.all(), required=False, allow_null=True, default=None,
     )
+    yape = serializers.DecimalField(
+        max_digits=7, decimal_places=2, required=False, default=Decimal('0.00'), min_value=Decimal('0.00'),
+    )
+    efectivo = serializers.DecimalField(
+        max_digits=7, decimal_places=2, required=False, default=Decimal('0.00'), min_value=Decimal('0.00'),
+    )
     modalidad = serializers.ChoiceField(choices=Modalidad.choices)
     canchas = serializers.PrimaryKeyRelatedField(
         queryset=Cancha.objects.filter(activa=True), many=True,
