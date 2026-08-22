@@ -1,5 +1,5 @@
 from datetime import datetime, time, timedelta
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
 from django.db.models import Sum
@@ -16,13 +16,13 @@ from .serializers import (
     AcademiaSerializer,
     CanchaSerializer,
     NuevaReservaSerializer,
-    PagoSerializer,
     ReservaSerializer,
     TarifaSerializer,
 )
 from .servicios import (
     canchas_ocupadas,
     fecha_valida,
+    guardar_pago,
     horas_operativas,
     nombre_academia_visible,
     obtener_tarifa,
@@ -125,16 +125,30 @@ class ReservaViewSet(viewsets.ViewSet):
         reserva.save(update_fields=['estado'])
         return Response(ReservaSerializer(reserva).data)
 
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=['patch'])
     def pagos(self, request, pk=None):
         try:
             reserva = Reserva.objects.get(pk=pk)
         except Reserva.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
-        entrada = PagoSerializer(data=request.data)
-        entrada.is_valid(raise_exception=True)
-        pago = entrada.save(reserva=reserva, registrado_por=request.user)
-        return Response(PagoSerializer(pago).data, status=status.HTTP_201_CREATED)
+
+        for campo, metodo in (('efectivo', Pago.Metodo.EFECTIVO), ('yape', Pago.Metodo.YAPE)):
+            if campo not in request.data:
+                continue
+            try:
+                monto = Decimal(str(request.data[campo]))
+            except InvalidOperation:
+                return Response(
+                    {'detail': f'{campo} debe ser un numero.'}, status=status.HTTP_400_BAD_REQUEST,
+                )
+            if monto < 0:
+                return Response(
+                    {'detail': f'{campo} no puede ser negativo.'}, status=status.HTTP_400_BAD_REQUEST,
+                )
+            guardar_pago(reserva, metodo, monto, request.user)
+
+        reserva.refresh_from_db()
+        return Response(ReservaSerializer(reserva).data)
 
     @action(detail=False, methods=['get'], url_path='resumen-pagos')
     def resumen_pagos(self, request):
