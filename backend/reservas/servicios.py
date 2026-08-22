@@ -48,6 +48,28 @@ def canchas_ocupadas(fecha, hora_inicio, cancha_ids):
     )
 
 
+def guardar_pago(reserva, metodo, monto, usuario):
+    """Upsert de a lo sumo un Pago por (reserva, metodo). monto<=0 borra el
+    pago existente (equivale a 'no pago por este metodo'). Si hubiera mas
+    de un Pago legacy del mismo metodo (dato de antes de este cambio),
+    actualiza el mas reciente y deja los demas intactos."""
+    pago = reserva.pagos.filter(metodo=metodo).order_by('-fecha_hora').first()
+    if monto <= 0:
+        if pago:
+            pago.delete()
+        return None
+    if pago:
+        pago.monto = monto
+        pago.tipo = Pago.Tipo.SALDO
+        pago.registrado_por = usuario
+        pago.save(update_fields=['monto', 'tipo', 'registrado_por'])
+        return pago
+    return Pago.objects.create(
+        reserva=reserva, metodo=metodo, monto=monto, tipo=Pago.Tipo.SALDO,
+        registrado_por=usuario,
+    )
+
+
 def horas_operativas():
     """Horas enteras (8 a 23) durante las que el complejo opera, tomando
     como referencia la tarifa mas temprana -- mismo criterio que usa el

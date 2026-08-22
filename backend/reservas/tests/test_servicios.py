@@ -1,10 +1,12 @@
 from datetime import date, time
+from decimal import Decimal
 
 from django.test import TestCase
 
 from reservas.models import Academia, Cancha, Modalidad, Pago, Reserva, ReservaCancha
 from reservas.servicios import (
     canchas_ocupadas,
+    guardar_pago,
     horas_operativas,
     nombre_academia_visible,
     obtener_tarifa,
@@ -249,3 +251,47 @@ class ResumenFinancieroDashboardTest(TestCase):
         self.assertEqual(por_cancha['Cancha 2'], '0.00')
         self.assertEqual(por_cancha['Cancha 3'], '0.00')
         self.assertEqual(por_cancha['Cancha 4'], '0.00')
+
+
+class GuardarPagoTest(TestCase):
+    def setUp(self):
+        self.usuario = UsuarioInterno.objects.create_user(
+            usuario='ana', password='clave123', nombre='Ana',
+        )
+        self.reserva = Reserva.objects.create(
+            modalidad=Modalidad.INDIVIDUAL, cliente_nombre='Juan', fecha='2026-08-20',
+            hora_inicio=time(10, 0), hora_fin=time(11, 0), precio_total='50.00',
+            asignada_por=self.usuario,
+        )
+
+    def test_crea_pago_nuevo(self):
+        pago = guardar_pago(self.reserva, Pago.Metodo.EFECTIVO, Decimal('50.00'), self.usuario)
+        self.assertEqual(pago.monto, Decimal('50.00'))
+        self.assertEqual(pago.tipo, Pago.Tipo.SALDO)
+        self.assertEqual(pago.registrado_por, self.usuario)
+
+    def test_actualiza_pago_existente_sin_duplicar(self):
+        guardar_pago(self.reserva, Pago.Metodo.EFECTIVO, Decimal('50.00'), self.usuario)
+        guardar_pago(self.reserva, Pago.Metodo.EFECTIVO, Decimal('70.00'), self.usuario)
+
+        self.assertEqual(self.reserva.pagos.filter(metodo=Pago.Metodo.EFECTIVO).count(), 1)
+        self.assertEqual(self.reserva.pagos.get(metodo=Pago.Metodo.EFECTIVO).monto, Decimal('70.00'))
+
+    def test_yape_y_efectivo_son_independientes(self):
+        guardar_pago(self.reserva, Pago.Metodo.EFECTIVO, Decimal('30.00'), self.usuario)
+        guardar_pago(self.reserva, Pago.Metodo.YAPE, Decimal('20.00'), self.usuario)
+
+        self.assertEqual(self.reserva.pagos.count(), 2)
+
+    def test_monto_cero_borra_pago_existente(self):
+        guardar_pago(self.reserva, Pago.Metodo.EFECTIVO, Decimal('50.00'), self.usuario)
+        resultado = guardar_pago(self.reserva, Pago.Metodo.EFECTIVO, Decimal('0.00'), self.usuario)
+
+        self.assertIsNone(resultado)
+        self.assertEqual(self.reserva.pagos.filter(metodo=Pago.Metodo.EFECTIVO).count(), 0)
+
+    def test_monto_cero_sin_pago_previo_no_hace_nada(self):
+        resultado = guardar_pago(self.reserva, Pago.Metodo.EFECTIVO, Decimal('0.00'), self.usuario)
+
+        self.assertIsNone(resultado)
+        self.assertEqual(self.reserva.pagos.count(), 0)
