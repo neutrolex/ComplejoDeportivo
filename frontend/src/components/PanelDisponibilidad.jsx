@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { apiFetch } from '../api'
-import { formatearFecha, formatearFechaLarga } from '../utils/fecha'
+import { formatearFecha, formatearFechaLarga, sumarDias } from '../utils/fecha'
+import CalendarioPopover from './CalendarioPopover'
 import { Badge } from './ui/badge'
 import ComentariosDia from './ComentariosDia'
 import ReservaDialogo from './ReservaDialogo'
@@ -25,14 +27,17 @@ function montosDeReserva(reserva) {
 }
 
 function BadgesPago({ reserva }) {
+  // Si no se pago nada, un unico badge "Pendiente". En cuanto hay algun
+  // pago, se muestran los DOS montos (aunque uno sea S/0.00) para que
+  // quede claro cual metodo falta -- nunca queda un monto oculto.
   const { yape, efectivo } = montosDeReserva(reserva)
   if (yape === 0 && efectivo === 0) {
     return <Badge variant="pendiente">Pendiente</Badge>
   }
   return (
     <>
-      {yape > 0 && <Badge variant="yape">Yape S/{yape.toFixed(2)}</Badge>}
-      {efectivo > 0 && <Badge variant="efectivo">Efectivo S/{efectivo.toFixed(2)}</Badge>}
+      <Badge variant="yape">Yape S/{yape.toFixed(2)}</Badge>
+      <Badge variant="efectivo">Efectivo S/{efectivo.toFixed(2)}</Badge>
     </>
   )
 }
@@ -129,12 +134,25 @@ export default function PanelDisponibilidad() {
             <span>{formatearFechaLarga(fecha)}</span>
           </div>
         </div>
-        <input
-          type="date"
-          value={fecha}
-          onChange={(e) => setFecha(e.target.value)}
-          className="rounded-md border border-slate-200 px-3 py-1.5 text-sm shadow-sm"
-        />
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setFecha((f) => sumarDias(f, -1))}
+            aria-label="Día anterior"
+            className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-500 shadow-sm hover:bg-slate-50"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <CalendarioPopover fecha={fecha} onSeleccionar={setFecha} />
+          <button
+            type="button"
+            onClick={() => setFecha((f) => sumarDias(f, 1))}
+            aria-label="Día siguiente"
+            className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-500 shadow-sm hover:bg-slate-50"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
       <div className="flex gap-6">
@@ -144,16 +162,21 @@ export default function PanelDisponibilidad() {
 
           {!cargando && !error && (
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <table className="w-full border-collapse text-sm">
+          <table className="w-full table-fixed border-collapse text-sm">
+            <colgroup>
+              <col className="w-16" />
+              {canchas.map((c) => <col key={c.id} />)}
+              <col />
+            </colgroup>
             <thead>
               <tr className="bg-slate-800 text-white">
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">Hora</th>
                 {canchas.map((c) => (
-                  <th key={c.id} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">
+                  <th key={c.id} className="truncate px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">
                     Cancha {c.numero}
                   </th>
                 ))}
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">Campo completo</th>
+                <th className="truncate px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">Campo completo</th>
               </tr>
             </thead>
             <tbody>
@@ -167,11 +190,16 @@ export default function PanelDisponibilidad() {
                       <td colSpan={canchas.length + 1} className="px-2 py-1.5">
                         <button
                           onClick={() => abrirEditar(completa, 'Campo completo')}
-                          className="flex w-full flex-wrap items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-left"
+                          title={completa.cliente_nombre}
+                          className="flex w-full min-w-0 flex-col items-start gap-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-left"
                         >
-                          <span className="font-semibold text-rose-700">{completa.cliente_nombre}</span>
-                          <Badge>Campo completo</Badge>
-                          <BadgesPago reserva={completa} />
+                          <div className="flex w-full min-w-0 items-center gap-2">
+                            <span className="min-w-0 truncate font-semibold text-rose-700">{completa.cliente_nombre}</span>
+                            <Badge className="shrink-0">Campo completo</Badge>
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            <BadgesPago reserva={completa} />
+                          </div>
                         </button>
                       </td>
                     ) : (
@@ -183,10 +211,15 @@ export default function PanelDisponibilidad() {
                               {reserva ? (
                                 <button
                                   onClick={() => abrirEditar(reserva, `Cancha ${c.numero}`)}
-                                  className="flex w-full flex-wrap items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-left"
+                                  title={reserva.cliente_nombre}
+                                  className="flex w-full min-w-0 flex-col items-start gap-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-left"
                                 >
-                                  <span className="font-semibold text-rose-700">{reserva.cliente_nombre}</span>
-                                  <BadgesPago reserva={reserva} />
+                                  <span className="w-full min-w-0 truncate font-semibold text-rose-700">
+                                    {reserva.cliente_nombre}
+                                  </span>
+                                  <div className="flex flex-wrap gap-1">
+                                    <BadgesPago reserva={reserva} />
+                                  </div>
                                 </button>
                               ) : (
                                 <button
@@ -205,7 +238,7 @@ export default function PanelDisponibilidad() {
                           ) : (
                             <button
                               onClick={() => abrirCrearCompleto(hora)}
-                              className="w-full rounded-lg px-3 py-2 text-left text-slate-400 transition-colors hover:bg-emerald-50 hover:text-emerald-700"
+                              className="w-full truncate rounded-lg px-3 py-2 text-left text-slate-400 transition-colors hover:bg-emerald-50 hover:text-emerald-700"
                             >
                               Reservar todo
                             </button>

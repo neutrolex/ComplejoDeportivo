@@ -4,8 +4,8 @@ import { useAuth } from '../context/AuthContext'
 import { Button } from './ui/button'
 
 const NAV = [
-  { to: '/', label: 'Administración de campo', icono: Calendar },
   { to: '/dashboard', label: 'Dashboard', icono: BarChart3 },
+  { to: '/', label: 'Administración de campo', icono: Calendar },
 ]
 
 export default function PanelLayout({ children }) {

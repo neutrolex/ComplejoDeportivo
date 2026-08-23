@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Banknote, Smartphone, Trash2 } from 'lucide-react'
 import { apiFetch } from '../api'
+import ConfirmDialogo from './ConfirmDialogo'
 import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
 import { Input } from './ui/input'
@@ -19,6 +20,8 @@ export default function ReservaDialogo({ contexto, academias, onCerrar, onGuarda
   const [efectivo, setEfectivo] = useState('0.00')
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
+  const [confirmandoEliminar, setConfirmandoEliminar] = useState(false)
+  const [eliminando, setEliminando] = useState(false)
 
   const modoEditar = contexto?.modo === 'editar'
 
@@ -79,15 +82,19 @@ export default function ReservaDialogo({ contexto, academias, onCerrar, onGuarda
     }
   }
 
-  async function eliminar() {
-    if (!window.confirm(`¿Cancelar la reserva de ${contexto.reserva.cliente_nombre}?`)) return
+  async function confirmarEliminar() {
     setError('')
+    setEliminando(true)
     try {
       await apiFetch(`/reservas/${contexto.reserva.id}/cancelar/`, { method: 'POST' })
       onCancelada(contexto.reserva.id)
+      setConfirmandoEliminar(false)
       onCerrar()
     } catch (err) {
       setError(err.message)
+      setConfirmandoEliminar(false)
+    } finally {
+      setEliminando(false)
     }
   }
 
@@ -161,13 +168,24 @@ export default function ReservaDialogo({ contexto, academias, onCerrar, onGuarda
 
         <div className="flex items-center justify-between">
           {modoEditar ? (
-            <Button variant="destructive" size="icon" onClick={eliminar} type="button">
+            <Button variant="destructive" size="icon" onClick={() => setConfirmandoEliminar(true)} type="button">
               <Trash2 className="h-4 w-4" />
             </Button>
           ) : <span />}
           <Button onClick={guardar} disabled={guardando}>Guardar</Button>
         </div>
       </DialogContent>
+
+      {modoEditar && (
+        <ConfirmDialogo
+          abierto={confirmandoEliminar}
+          titulo="¿Cancelar esta reserva?"
+          detalle={`${contexto.reserva.cliente_nombre} — ${contexto.horaInicio.slice(0, 5)} · ${contexto.etiquetaCancha}`}
+          confirmando={eliminando}
+          onConfirmar={confirmarEliminar}
+          onCancelar={() => setConfirmandoEliminar(false)}
+        />
+      )}
     </Dialog>
   )
 }
