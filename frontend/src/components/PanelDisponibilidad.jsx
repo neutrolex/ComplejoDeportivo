@@ -278,7 +278,7 @@ export default function PanelDisponibilidad() {
                             <button
                               onClick={() => abrirEditar(completoInfo.reserva, 'Campo completo')}
                               title={completoInfo.reserva.cliente_nombre}
-                              className="flex h-full w-full min-w-0 flex-col items-start gap-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-left"
+                              className="flex h-full w-full min-w-0 flex-col items-start justify-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-left"
                             >
                               <ContenidoReserva reserva={completoInfo.reserva} extra={<Badge className="shrink-0">Campo completo</Badge>} />
                             </button>
@@ -294,7 +294,7 @@ export default function PanelDisponibilidad() {
                                     <button
                                       onClick={() => abrirEditar(info.reserva, `Cancha ${c.numero}`)}
                                       title={info.reserva.cliente_nombre}
-                                      className="flex h-full w-full min-w-0 flex-col items-start gap-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-left"
+                                      className="flex h-full w-full min-w-0 flex-col items-start justify-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-left"
                                     >
                                       <ContenidoReserva reserva={info.reserva} />
                                     </button>
