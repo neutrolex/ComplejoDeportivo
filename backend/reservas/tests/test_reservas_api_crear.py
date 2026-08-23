@@ -220,11 +220,11 @@ class CrearReservaApiTest(APITestCase):
         }, format='json')
         self.assertEqual(response.status_code, 400)
 
-    def test_duracion_mayor_a_tres_horas_devuelve_400(self):
+    def test_duracion_mayor_a_una_hora_y_media_devuelve_400(self):
         cancha = Cancha.objects.get(numero=1)
         response = self.client.post('/api/reservas/', {
             'fecha': '2026-08-20', 'hora_inicio': '10:00', 'cliente_nombre': 'Juan',
-            'modalidad': 'individual', 'canchas': [cancha.id], 'duracion': '3.5',
+            'modalidad': 'individual', 'canchas': [cancha.id], 'duracion': '2',
         }, format='json')
         self.assertEqual(response.status_code, 400)
 
@@ -232,15 +232,15 @@ class CrearReservaApiTest(APITestCase):
         cancha = Cancha.objects.get(numero=1)
         response = self.client.post('/api/reservas/', {
             'fecha': '2026-08-20', 'hora_inicio': '23:00', 'cliente_nombre': 'Juan',
-            'modalidad': 'individual', 'canchas': [cancha.id], 'duracion': '3',
+            'modalidad': 'individual', 'canchas': [cancha.id], 'duracion': '1.5',
         }, format='json')
         self.assertEqual(response.status_code, 400)
 
     def test_reserva_que_termina_justo_a_medianoche_es_valida(self):
         cancha = Cancha.objects.get(numero=1)
         response = self.client.post('/api/reservas/', {
-            'fecha': '2026-08-20', 'hora_inicio': '22:00', 'cliente_nombre': 'Juan',
-            'modalidad': 'individual', 'canchas': [cancha.id], 'duracion': '2',
+            'fecha': '2026-08-20', 'hora_inicio': '22:30', 'cliente_nombre': 'Juan',
+            'modalidad': 'individual', 'canchas': [cancha.id], 'duracion': '1.5',
         }, format='json')
 
         self.assertEqual(response.status_code, 201)

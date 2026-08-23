@@ -13,7 +13,7 @@ function montoPorMetodo(reserva, metodo) {
     .toFixed(2)
 }
 
-const OPCIONES_DURACION = [1, 1.5, 2, 2.5, 3]
+const OPCIONES_DURACION = [1, 1.5]
 
 function etiquetaDuracion(horas) {
   const enteras = Math.floor(horas)
