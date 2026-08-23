@@ -1,29 +1,23 @@
 import { AlertTriangle } from 'lucide-react'
 import { Button } from './ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
+import { Dialog, DialogContent } from './ui/dialog'
 
 export default function ConfirmDialogo({ abierto, titulo, detalle, onConfirmar, onCancelar, confirmando }) {
   return (
     <Dialog open={abierto} onOpenChange={(sigueAbierto) => !sigueAbierto && onCancelar()}>
-      <DialogContent className="max-w-sm">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-red-700">
-            <AlertTriangle className="h-4 w-4" /> {titulo}
-          </DialogTitle>
-        </DialogHeader>
+      <DialogContent className="max-w-xs text-center">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-rose-100">
+          <AlertTriangle className="h-6 w-6 text-rose-600" />
+        </div>
+        <h2 className="text-base font-semibold text-slate-900">{titulo || '¿Estás seguro?'}</h2>
+        {detalle && <p className="text-sm text-slate-500">{detalle}</p>}
 
-        {detalle && (
-          <div className="rounded-lg border-2 border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-800">
-            {detalle}
-          </div>
-        )}
-
-        <div className="flex justify-end gap-2">
+        <div className="mt-1 flex justify-center gap-2">
           <Button variant="outline" onClick={onCancelar} type="button">
             Cancelar
           </Button>
           <Button variant="destructive" onClick={onConfirmar} disabled={confirmando} type="button">
-            {confirmando ? 'Eliminando...' : 'Sí, eliminar'}
+            {confirmando ? 'Eliminando...' : 'Eliminar'}
           </Button>
         </div>
       </DialogContent>

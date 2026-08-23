@@ -4,7 +4,7 @@ import { formatearFecha, parsearFecha } from '../utils/fecha'
 import { Button } from './ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
 
-const NOMBRES_DIA_CORTO = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
+const NOMBRES_DIA_CORTO = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa', 'Do']
 const NOMBRES_MES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto',
   'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
@@ -94,7 +94,7 @@ export default function CalendarioPopover({ fecha, onSeleccionar }) {
                   esSeleccionado
                     ? 'bg-emerald-600 font-semibold text-white'
                     : esHoy
-                      ? 'bg-emerald-50 font-semibold text-emerald-700'
+                      ? 'font-semibold text-emerald-700 ring-2 ring-inset ring-emerald-500 hover:bg-emerald-50'
                       : 'text-slate-700 hover:bg-slate-100'
                 }`}
               >
@@ -109,7 +109,7 @@ export default function CalendarioPopover({ fecha, onSeleccionar }) {
           onClick={() => elegir(new Date())}
           className="mt-2 w-full rounded-md border border-slate-200 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
         >
-          Hoy
+          Ir a hoy
         </button>
       </PopoverContent>
     </Popover>

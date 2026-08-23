@@ -13,9 +13,25 @@ function montoPorMetodo(reserva, metodo) {
     .toFixed(2)
 }
 
+const OPCIONES_DURACION = [1, 1.5, 2, 2.5, 3]
+
+function etiquetaDuracion(horas) {
+  const enteras = Math.floor(horas)
+  return horas % 1 === 0.5 ? `${enteras}h 30min` : `${enteras}h`
+}
+
+function calcularHoraFin(horaInicio, duracionHoras) {
+  const [h, m] = horaInicio.split(':').map(Number)
+  const totalMin = (h * 60 + m + duracionHoras * 60) % (24 * 60)
+  const hh = Math.floor(totalMin / 60)
+  const mm = totalMin % 60
+  return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`
+}
+
 export default function ReservaDialogo({ contexto, academias, onCerrar, onGuardada, onCancelada }) {
   const [cliente, setCliente] = useState('')
   const [academiaId, setAcademiaId] = useState('')
+  const [duracion, setDuracion] = useState(1)
   const [yape, setYape] = useState('0.00')
   const [efectivo, setEfectivo] = useState('0.00')
   const [guardando, setGuardando] = useState(false)
@@ -35,6 +51,7 @@ export default function ReservaDialogo({ contexto, academias, onCerrar, onGuarda
     } else {
       setCliente('')
       setAcademiaId('')
+      setDuracion(1)
       setYape('0.00')
       setEfectivo('0.00')
     }
@@ -68,6 +85,7 @@ export default function ReservaDialogo({ contexto, academias, onCerrar, onGuarda
             modalidad: contexto.modalidad,
             canchas: contexto.canchaIds,
             academia: academiaId || null,
+            duracion,
             yape,
             efectivo,
           }),
@@ -132,6 +150,24 @@ export default function ReservaDialogo({ contexto, academias, onCerrar, onGuarda
               <option value="">Ninguna (cliente casual)</option>
               {academias.map((a) => (
                 <option key={a.id} value={a.id}>{a.nombre}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {!modoEditar && (
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-slate-700" htmlFor="reserva-duracion">Duración</label>
+            <select
+              id="reserva-duracion"
+              value={duracion}
+              onChange={(e) => setDuracion(Number(e.target.value))}
+              className="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm shadow-sm"
+            >
+              {OPCIONES_DURACION.map((horas) => (
+                <option key={horas} value={horas}>
+                  {etiquetaDuracion(horas)} — hasta las {calcularHoraFin(contexto.horaInicio, horas)}
+                </option>
               ))}
             </select>
           </div>
