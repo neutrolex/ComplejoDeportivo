@@ -34,18 +34,42 @@ def obtener_tarifa(modalidad, hora):
     return None
 
 
-def canchas_ocupadas(fecha, hora_inicio, cancha_ids):
+def _minutos_desde_medianoche(hora, es_fin=False):
+    """Convierte un time a minutos desde las 00:00. Si es_fin=True y el
+    valor es exactamente medianoche, se interpreta como el fin del dia
+    operativo (24:00) y no como el inicio del dia -- mismo caso especial
+    que ya usa obtener_tarifa()."""
+    if es_fin and hora == time(0, 0):
+        return 24 * 60
+    return hora.hour * 60 + hora.minute
+
+
+def horarios_se_solapan(inicio_a, fin_a, inicio_b, fin_b):
+    """True si el rango [inicio_a, fin_a) se solapa con [inicio_b, fin_b),
+    tratando hora_fin=00:00 como fin del dia operativo en ambos rangos."""
+    a_ini = _minutos_desde_medianoche(inicio_a)
+    a_fin = _minutos_desde_medianoche(fin_a, es_fin=True)
+    b_ini = _minutos_desde_medianoche(inicio_b)
+    b_fin = _minutos_desde_medianoche(fin_b, es_fin=True)
+    return a_ini < b_fin and a_fin > b_ini
+
+
+def canchas_ocupadas(fecha, hora_inicio, hora_fin, cancha_ids):
     """De la lista cancha_ids, devuelve las que ya tienen una reserva NO
-    cancelada para esa fecha y hora_inicio exactas."""
-    return set(
-        ReservaCancha.objects.filter(
-            cancha_id__in=cancha_ids,
-            reserva__fecha=fecha,
-            reserva__hora_inicio=hora_inicio,
-        )
+    cancelada ese dia cuyo horario se solapa con [hora_inicio, hora_fin).
+    Se resuelve en Python (no en la consulta SQL) porque el caso especial
+    de hora_fin=00:00 no es comparable con una condicion simple de rango
+    en el motor de base de datos -- el volumen de reservas por dia es
+    chico, no hay problema de rendimiento."""
+    candidatas = (
+        ReservaCancha.objects.filter(cancha_id__in=cancha_ids, reserva__fecha=fecha)
         .exclude(reserva__estado=Reserva.Estado.CANCELADA)
-        .values_list('cancha_id', flat=True)
+        .select_related('reserva')
     )
+    return {
+        rc.cancha_id for rc in candidatas
+        if horarios_se_solapan(hora_inicio, hora_fin, rc.reserva.hora_inicio, rc.reserva.hora_fin)
+    }
 
 
 def guardar_pago(reserva, metodo, monto, usuario):

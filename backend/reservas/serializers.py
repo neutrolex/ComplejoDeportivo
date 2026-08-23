@@ -64,10 +64,20 @@ class NuevaReservaSerializer(serializers.Serializer):
     efectivo = serializers.DecimalField(
         max_digits=7, decimal_places=2, required=False, default=Decimal('0.00'), min_value=Decimal('0.00'),
     )
+    # En horas. 1 a 3, en incrementos de 30 minutos (1, 1.5, 2, 2.5, 3).
+    duracion = serializers.DecimalField(
+        max_digits=3, decimal_places=1, required=False, default=Decimal('1.0'),
+        min_value=Decimal('1.0'), max_value=Decimal('3.0'),
+    )
     modalidad = serializers.ChoiceField(choices=Modalidad.choices)
     canchas = serializers.PrimaryKeyRelatedField(
         queryset=Cancha.objects.filter(activa=True), many=True,
     )
+
+    def validate_duracion(self, valor):
+        if (valor * 2) % 1 != 0:
+            raise serializers.ValidationError('La duracion debe ser en incrementos de 30 minutos.')
+        return valor
 
     def validate_canchas(self, canchas):
         if len(canchas) != len(set(c.id for c in canchas)):

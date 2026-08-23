@@ -24,6 +24,7 @@ from .servicios import (
     canchas_ocupadas,
     fecha_valida,
     guardar_pago,
+    horarios_se_solapan,
     horas_operativas,
     nombre_academia_visible,
     obtener_tarifa,
@@ -88,15 +89,31 @@ class ReservaViewSet(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        ocupadas = canchas_ocupadas(datos['fecha'], datos['hora_inicio'], cancha_ids)
+        inicio_dt = datetime.combine(datos['fecha'], datos['hora_inicio'])
+        fin_dt = inicio_dt + timedelta(hours=float(datos['duracion']))
+        # fin_dt cae justo a medianoche del dia siguiente es un caso valido
+        # (la reserva termina "a las 00:00", el cierre del dia operativo,
+        # mismo criterio que obtener_tarifa/horarios_se_solapan). Cualquier
+        # otro cruce de fecha significa que la reserva seguiria despues de
+        # medianoche, lo cual no esta permitido.
+        termina_justo_a_medianoche = (
+            fin_dt.time() == time(0, 0) and fin_dt.date() == datos['fecha'] + timedelta(days=1)
+        )
+        if fin_dt.date() != datos['fecha'] and not termina_justo_a_medianoche:
+            return Response(
+                {'detail': 'La reserva no puede terminar despues de medianoche.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        hora_fin = fin_dt.time()
+
+        ocupadas = canchas_ocupadas(datos['fecha'], datos['hora_inicio'], hora_fin, cancha_ids)
         if ocupadas:
             return Response(
                 {'detail': f'Las canchas {sorted(ocupadas)} ya estan ocupadas a esa hora.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        inicio_dt = datetime.combine(datos['fecha'], datos['hora_inicio'])
-        hora_fin = (inicio_dt + timedelta(hours=1)).time()
+        precio_total = (tarifa.precio_por_hora * datos['duracion']).quantize(Decimal('0.01'))
 
         with transaction.atomic():
             reserva = Reserva.objects.create(
@@ -105,7 +122,7 @@ class ReservaViewSet(viewsets.ViewSet):
                 fecha=datos['fecha'],
                 hora_inicio=datos['hora_inicio'],
                 hora_fin=hora_fin,
-                precio_total=tarifa.precio_por_hora,
+                precio_total=precio_total,
                 academia=datos.get('academia'),
                 asignada_por=request.user,
             )
@@ -233,7 +250,15 @@ class DisponibilidadPublicaView(APIView):
         horas_resultado = []
         for hora in horas_operativas():
             hora_texto = f'{hora:02d}:00'
-            reservas_hora = [r for r in reservas if r.hora_inicio == time(hora, 0)]
+            bloque_inicio = time(hora, 0)
+            bloque_fin = time(0, 0) if hora == 23 else time(hora + 1, 0)
+            # Solapamiento, no coincidencia exacta de hora_inicio: una
+            # reserva de varias horas que empezo antes debe seguir
+            # marcando ocupada esta franja aunque no arranque aca.
+            reservas_hora = [
+                r for r in reservas
+                if horarios_se_solapan(bloque_inicio, bloque_fin, r.hora_inicio, r.hora_fin)
+            ]
 
             ocupacion_por_cancha = {}
             for r in reservas_hora:

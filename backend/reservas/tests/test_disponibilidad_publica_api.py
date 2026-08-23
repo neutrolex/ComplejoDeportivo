@@ -14,14 +14,15 @@ class DisponibilidadPublicaApiTest(APITestCase):
         )
         self.client = APIClient()
 
-    def _crear_reserva(self, cancha_ids, modalidad=Modalidad.INDIVIDUAL, hora=10,
+    def _crear_reserva(self, cancha_ids, modalidad=Modalidad.INDIVIDUAL, hora=10, duracion=1,
                         cliente='Cliente', academia=None, estado=Reserva.Estado.CONFIRMADA):
+        hora_fin = time(0, 0) if hora + duracion >= 24 else time(hora + duracion, 0)
         reserva = Reserva.objects.create(
             modalidad=modalidad,
             cliente_nombre=cliente,
             fecha='2026-08-24',
             hora_inicio=time(hora, 0),
-            hora_fin=time(hora + 1, 0),
+            hora_fin=hora_fin,
             precio_total='50.00',
             estado=estado,
             academia=academia,
@@ -134,3 +135,13 @@ class DisponibilidadPublicaApiTest(APITestCase):
         hora_10 = self._hora(response, '10:00')
         self.assertEqual(hora_10['campo_completo']['estado'], 'ocupado')
         self.assertIsNone(hora_10['campo_completo']['academia'])
+
+    def test_reserva_de_varias_horas_ocupa_todas_las_franjas_que_cubre(self):
+        cancha = Cancha.objects.get(numero=1)
+        self._crear_reserva([cancha.id], hora=10, duracion=2, cliente='Juan')
+
+        response = self.client.get('/api/publico/disponibilidad/', {'fecha': '2026-08-24'})
+
+        self.assertEqual(self._hora(response, '10:00')['canchas']['1']['estado'], 'ocupado')
+        self.assertEqual(self._hora(response, '11:00')['canchas']['1']['estado'], 'ocupado')
+        self.assertEqual(self._hora(response, '12:00')['canchas']['1']['estado'], 'libre')

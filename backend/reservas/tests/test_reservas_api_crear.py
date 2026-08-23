@@ -182,3 +182,82 @@ class CrearReservaApiTest(APITestCase):
             'modalidad': 'individual', 'canchas': [cancha.id], 'yape': '-5.00',
         }, format='json')
         self.assertEqual(response.status_code, 400)
+
+    def test_duracion_hora_y_media_calcula_hora_fin_y_precio(self):
+        cancha = Cancha.objects.get(numero=1)
+        response = self.client.post('/api/reservas/', {
+            'fecha': '2026-08-20', 'hora_inicio': '10:00', 'cliente_nombre': 'Juan',
+            'modalidad': 'individual', 'canchas': [cancha.id], 'duracion': '1.5',
+        }, format='json')
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['hora_fin'], '11:30:00')
+        self.assertEqual(response.data['precio_total'], '75.00')
+
+    def test_sin_duracion_por_defecto_es_una_hora(self):
+        cancha = Cancha.objects.get(numero=1)
+        response = self.client.post('/api/reservas/', {
+            'fecha': '2026-08-20', 'hora_inicio': '10:00', 'cliente_nombre': 'Juan',
+            'modalidad': 'individual', 'canchas': [cancha.id],
+        }, format='json')
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['hora_fin'], '11:00:00')
+
+    def test_duracion_que_no_es_multiplo_de_media_hora_devuelve_400(self):
+        cancha = Cancha.objects.get(numero=1)
+        response = self.client.post('/api/reservas/', {
+            'fecha': '2026-08-20', 'hora_inicio': '10:00', 'cliente_nombre': 'Juan',
+            'modalidad': 'individual', 'canchas': [cancha.id], 'duracion': '1.25',
+        }, format='json')
+        self.assertEqual(response.status_code, 400)
+
+    def test_duracion_menor_a_una_hora_devuelve_400(self):
+        cancha = Cancha.objects.get(numero=1)
+        response = self.client.post('/api/reservas/', {
+            'fecha': '2026-08-20', 'hora_inicio': '10:00', 'cliente_nombre': 'Juan',
+            'modalidad': 'individual', 'canchas': [cancha.id], 'duracion': '0.5',
+        }, format='json')
+        self.assertEqual(response.status_code, 400)
+
+    def test_duracion_mayor_a_tres_horas_devuelve_400(self):
+        cancha = Cancha.objects.get(numero=1)
+        response = self.client.post('/api/reservas/', {
+            'fecha': '2026-08-20', 'hora_inicio': '10:00', 'cliente_nombre': 'Juan',
+            'modalidad': 'individual', 'canchas': [cancha.id], 'duracion': '3.5',
+        }, format='json')
+        self.assertEqual(response.status_code, 400)
+
+    def test_reserva_que_cruzaria_medianoche_devuelve_400(self):
+        cancha = Cancha.objects.get(numero=1)
+        response = self.client.post('/api/reservas/', {
+            'fecha': '2026-08-20', 'hora_inicio': '23:00', 'cliente_nombre': 'Juan',
+            'modalidad': 'individual', 'canchas': [cancha.id], 'duracion': '3',
+        }, format='json')
+        self.assertEqual(response.status_code, 400)
+
+    def test_reserva_que_termina_justo_a_medianoche_es_valida(self):
+        cancha = Cancha.objects.get(numero=1)
+        response = self.client.post('/api/reservas/', {
+            'fecha': '2026-08-20', 'hora_inicio': '22:00', 'cliente_nombre': 'Juan',
+            'modalidad': 'individual', 'canchas': [cancha.id], 'duracion': '2',
+        }, format='json')
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['hora_fin'], '00:00:00')
+
+    def test_detecta_solapamiento_con_reserva_de_mayor_duracion(self):
+        cancha = Cancha.objects.get(numero=1)
+        primera = self.client.post('/api/reservas/', {
+            'fecha': '2026-08-20', 'hora_inicio': '08:00', 'cliente_nombre': 'Primero',
+            'modalidad': 'individual', 'canchas': [cancha.id], 'duracion': '1.5',
+        }, format='json')
+        self.assertEqual(primera.status_code, 201)
+
+        # La primera reserva ocupa hasta las 09:30 -- pedir 09:00-10:00 se
+        # solapa con esos ultimos 30 minutos, aunque los inicios no coincidan.
+        segunda = self.client.post('/api/reservas/', {
+            'fecha': '2026-08-20', 'hora_inicio': '09:00', 'cliente_nombre': 'Segundo',
+            'modalidad': 'individual', 'canchas': [cancha.id], 'duracion': '1',
+        }, format='json')
+        self.assertEqual(segunda.status_code, 400)

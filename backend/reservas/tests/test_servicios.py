@@ -7,6 +7,7 @@ from reservas.models import Academia, Cancha, ComentarioDia, Modalidad, Pago, Re
 from reservas.servicios import (
     canchas_ocupadas,
     guardar_pago,
+    horarios_se_solapan,
     horas_operativas,
     nombre_academia_visible,
     obtener_tarifa,
@@ -27,6 +28,32 @@ class ObtenerTarifaTest(TestCase):
     def test_devuelve_none_fuera_de_horario(self):
         tarifa = obtener_tarifa(Modalidad.INDIVIDUAL, time(3, 0))
         self.assertIsNone(tarifa)
+
+
+class HorariosSeSolapanTest(TestCase):
+    def test_mismo_horario_se_solapa(self):
+        self.assertTrue(horarios_se_solapan(time(18, 0), time(19, 0), time(18, 0), time(19, 0)))
+
+    def test_uno_empieza_donde_termina_el_otro_no_se_solapan(self):
+        self.assertFalse(horarios_se_solapan(time(18, 0), time(19, 0), time(19, 0), time(20, 0)))
+        self.assertFalse(horarios_se_solapan(time(19, 0), time(20, 0), time(18, 0), time(19, 0)))
+
+    def test_solapamiento_parcial(self):
+        # 18:00-19:30 se solapa con 19:00-20:00 (comparten 19:00-19:30)
+        self.assertTrue(horarios_se_solapan(time(18, 0), time(19, 30), time(19, 0), time(20, 0)))
+
+    def test_uno_contiene_al_otro(self):
+        self.assertTrue(horarios_se_solapan(time(18, 0), time(21, 0), time(19, 0), time(20, 0)))
+
+    def test_completamente_separados_no_se_solapan(self):
+        self.assertFalse(horarios_se_solapan(time(8, 0), time(9, 0), time(20, 0), time(21, 0)))
+
+    def test_hora_fin_medianoche_se_trata_como_fin_del_dia(self):
+        # Una reserva 22:00-00:00 (medianoche) debe solaparse con 23:00-00:30
+        # del dia siguiente NO -- pero si con cualquier horario de esa misma
+        # noche que empiece antes de medianoche, como 23:30-00:00.
+        self.assertTrue(horarios_se_solapan(time(22, 0), time(0, 0), time(23, 30), time(0, 0)))
+        self.assertFalse(horarios_se_solapan(time(8, 0), time(9, 0), time(22, 0), time(0, 0)))
 
 
 class CanchasOcupadasTest(TestCase):
@@ -50,14 +77,31 @@ class CanchasOcupadasTest(TestCase):
 
     def test_detecta_cancha_ocupada(self):
         ids = [self.cancha_1.id, self.cancha_2.id, self.cancha_3.id]
-        ocupadas = canchas_ocupadas('2026-08-20', time(18, 0), ids)
+        ocupadas = canchas_ocupadas('2026-08-20', time(18, 0), time(19, 0), ids)
         self.assertEqual(ocupadas, {self.cancha_2.id})
 
     def test_reserva_cancelada_no_cuenta_como_ocupada(self):
         self.reserva.estado = Reserva.Estado.CANCELADA
         self.reserva.save(update_fields=['estado'])
         ids = [self.cancha_1.id, self.cancha_2.id, self.cancha_3.id]
-        ocupadas = canchas_ocupadas('2026-08-20', time(18, 0), ids)
+        ocupadas = canchas_ocupadas('2026-08-20', time(18, 0), time(19, 0), ids)
+        self.assertEqual(ocupadas, set())
+
+    def test_detecta_solapamiento_parcial_con_duracion_mayor(self):
+        # La reserva existente es 18:00-19:00. Pedir 17:30-18:30 (1h) se
+        # solapa (comparten 18:00-18:30) aunque no coincidan los inicios.
+        ids = [self.cancha_2.id]
+        ocupadas = canchas_ocupadas('2026-08-20', time(17, 30), time(18, 30), ids)
+        self.assertEqual(ocupadas, {self.cancha_2.id})
+
+    def test_no_detecta_ocupacion_si_no_se_solapan(self):
+        ids = [self.cancha_2.id]
+        ocupadas = canchas_ocupadas('2026-08-20', time(19, 0), time(20, 0), ids)
+        self.assertEqual(ocupadas, set())
+
+    def test_no_detecta_ocupacion_en_otra_fecha(self):
+        ids = [self.cancha_2.id]
+        ocupadas = canchas_ocupadas('2026-08-21', time(18, 0), time(19, 0), ids)
         self.assertEqual(ocupadas, set())
 
 
