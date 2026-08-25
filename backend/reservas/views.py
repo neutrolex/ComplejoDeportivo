@@ -26,6 +26,7 @@ from .servicios import (
     guardar_pago,
     horarios_se_solapan,
     horas_operativas,
+    materializar_horarios_academia,
     nombre_academia_visible,
     obtener_tarifa,
     resumen_financiero_dashboard,
@@ -65,6 +66,9 @@ class ReservaViewSet(viewsets.ViewSet):
                 {'detail': 'Formato de fecha invalido, use YYYY-MM-DD.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        fecha_obj = datetime.strptime(fecha, '%Y-%m-%d').date()
+        materializar_horarios_academia(fecha_obj, request.user)
+
         reservas = (
             Reserva.objects.filter(fecha=fecha)
             .exclude(estado=Reserva.Estado.CANCELADA)
