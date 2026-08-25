@@ -1,10 +1,12 @@
 from datetime import datetime, time, timedelta
 from decimal import Decimal
 
+from django.db import transaction
 from django.db.models import Sum
 from django.db.models.functions import TruncDate
+from django.utils import timezone
 
-from .models import ComentarioDia, Modalidad, Pago, Reserva, ReservaCancha, Tarifa
+from .models import AcademiaHorario, ComentarioDia, Modalidad, Pago, Reserva, ReservaCancha, Tarifa
 
 
 def fecha_valida(texto):
@@ -226,3 +228,60 @@ def resumen_financiero_dashboard(hoy):
         'ingresos_diarios_30_dias': _ingresos_diarios(desde_30_dias, hoy),
         'ingresos_por_cancha_30_dias': _ingresos_por_cancha(desde_30_dias, hoy),
     }
+
+
+def materializar_horarios_academia(fecha, usuario):
+    """Por cada AcademiaHorario cuyo dia_semana coincide con 'fecha', crea
+    la Reserva real que falte (con su ReservaCancha) -- no hace nada si ya
+    existe, si la fecha es pasada, si no hay tarifa configurada para esa
+    hora, o si la cancha ya esta ocupada. Se llama desde
+    ReservaViewSet.list() antes de devolver las reservas del dia: no hay
+    ningun proceso en segundo plano, se materializa perezosamente la
+    primera vez que alguien mira ese dia."""
+    if fecha < timezone.localdate():
+        return
+
+    horarios = (
+        AcademiaHorario.objects.filter(dia_semana=fecha.weekday())
+        .select_related('academia')
+        .prefetch_related('canchas')
+    )
+    for horario in horarios:
+        ya_existe = Reserva.objects.filter(
+            academia=horario.academia, fecha=fecha, hora_inicio=horario.hora_inicio,
+        ).exclude(estado=Reserva.Estado.CANCELADA).exists()
+        if ya_existe:
+            continue
+
+        cancha_ids = list(horario.canchas.values_list('id', flat=True))
+        if not cancha_ids:
+            continue
+
+        if len(cancha_ids) == 4:
+            grupos = [cancha_ids]
+            modalidad = Modalidad.COMPLETO
+        else:
+            grupos = [[cid] for cid in cancha_ids]
+            modalidad = Modalidad.INDIVIDUAL
+
+        tarifa = obtener_tarifa(modalidad, horario.hora_inicio)
+        if tarifa is None:
+            continue
+
+        inicio_min = _minutos_desde_medianoche(horario.hora_inicio)
+        fin_min = _minutos_desde_medianoche(horario.hora_fin, es_fin=True)
+        duracion_horas = Decimal(fin_min - inicio_min) / Decimal(60)
+        precio_total = (tarifa.precio_por_hora * duracion_horas).quantize(Decimal('0.01'))
+
+        for grupo in grupos:
+            if canchas_ocupadas(fecha, horario.hora_inicio, horario.hora_fin, grupo):
+                continue
+            with transaction.atomic():
+                reserva = Reserva.objects.create(
+                    modalidad=modalidad, cliente_nombre=horario.academia.nombre, fecha=fecha,
+                    hora_inicio=horario.hora_inicio, hora_fin=horario.hora_fin,
+                    precio_total=precio_total, academia=horario.academia, asignada_por=usuario,
+                )
+                ReservaCancha.objects.bulk_create([
+                    ReservaCancha(reserva=reserva, cancha_id=cid) for cid in grupo
+                ])

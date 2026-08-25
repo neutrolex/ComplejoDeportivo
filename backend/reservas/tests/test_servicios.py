@@ -1,14 +1,16 @@
-from datetime import date, time
+from datetime import date, time, timedelta
 from decimal import Decimal
 
 from django.test import TestCase
+from django.utils import timezone
 
-from reservas.models import Academia, Cancha, ComentarioDia, Modalidad, Pago, Reserva, ReservaCancha
+from reservas.models import Academia, AcademiaHorario, Cancha, ComentarioDia, Modalidad, Pago, Reserva, ReservaCancha
 from reservas.servicios import (
     canchas_ocupadas,
     guardar_pago,
     horarios_se_solapan,
     horas_operativas,
+    materializar_horarios_academia,
     nombre_academia_visible,
     obtener_tarifa,
     resumen_financiero_dashboard,
@@ -385,3 +387,109 @@ class GuardarPagoTest(TestCase):
 
         self.assertIsNone(resultado)
         self.assertEqual(self.reserva.pagos.count(), 0)
+
+
+class MaterializarHorariosAcademiaTest(TestCase):
+    def setUp(self):
+        self.usuario = UsuarioInterno.objects.create_user(
+            usuario='ana', password='clave123', nombre='Ana',
+        )
+        self.academia = Academia.objects.create(nombre='Talentos FC', color='#059669')
+        self.cancha_1 = Cancha.objects.get(numero=1)
+        self.cancha_2 = Cancha.objects.get(numero=2)
+        # Usar el proximo lunes (o hoy si hoy es lunes)
+        hoy = timezone.localdate()
+        dias_hasta_lunes = (0 - hoy.weekday()) % 7
+        self.lunes = hoy + timedelta(days=dias_hasta_lunes)
+
+    def _crear_horario(self, dia_semana, canchas, hora_inicio=time(18, 0), hora_fin=time(19, 0)):
+        horario = AcademiaHorario.objects.create(
+            academia=self.academia, dia_semana=dia_semana,
+            hora_inicio=hora_inicio, hora_fin=hora_fin,
+        )
+        horario.canchas.set(canchas)
+        return horario
+
+    def test_crea_reserva_individual_para_una_cancha(self):
+        self._crear_horario(AcademiaHorario.Dia.LUNES, [self.cancha_1])
+
+        materializar_horarios_academia(self.lunes, self.usuario)
+
+        reserva = Reserva.objects.get(academia=self.academia, fecha=self.lunes)
+        self.assertEqual(reserva.modalidad, Modalidad.INDIVIDUAL)
+        self.assertEqual(reserva.cliente_nombre, 'Talentos FC')
+        self.assertEqual(reserva.hora_inicio, time(18, 0))
+        self.assertEqual(reserva.hora_fin, time(19, 0))
+        self.assertEqual(reserva.asignada_por, self.usuario)
+        self.assertEqual([rc.cancha_id for rc in reserva.canchas_asignadas.all()], [self.cancha_1.id])
+
+    def test_crea_una_reserva_por_cada_cancha_si_no_son_las_4(self):
+        self._crear_horario(AcademiaHorario.Dia.LUNES, [self.cancha_1, self.cancha_2])
+
+        materializar_horarios_academia(self.lunes, self.usuario)
+
+        reservas = Reserva.objects.filter(academia=self.academia, fecha=self.lunes)
+        self.assertEqual(reservas.count(), 2)
+        self.assertTrue(all(r.modalidad == Modalidad.INDIVIDUAL for r in reservas))
+
+    def test_crea_una_sola_reserva_completo_si_son_las_4_canchas(self):
+        todas = list(Cancha.objects.all())
+        self._crear_horario(AcademiaHorario.Dia.LUNES, todas)
+
+        materializar_horarios_academia(self.lunes, self.usuario)
+
+        reservas = Reserva.objects.filter(academia=self.academia, fecha=self.lunes)
+        self.assertEqual(reservas.count(), 1)
+        self.assertEqual(reservas.first().modalidad, Modalidad.COMPLETO)
+        self.assertEqual(reservas.first().canchas_asignadas.count(), 4)
+
+    def test_precio_total_segun_tarifa_y_duracion(self):
+        # Tarifa individual 18:00-00:00 es 70.00/hora (ver seed). 1.5h = 105.00
+        self._crear_horario(
+            AcademiaHorario.Dia.LUNES, [self.cancha_1],
+            hora_inicio=time(18, 0), hora_fin=time(19, 30),
+        )
+
+        materializar_horarios_academia(self.lunes, self.usuario)
+
+        reserva = Reserva.objects.get(academia=self.academia, fecha=self.lunes)
+        self.assertEqual(reserva.precio_total, Decimal('105.00'))
+
+    def test_no_duplica_si_se_llama_dos_veces(self):
+        self._crear_horario(AcademiaHorario.Dia.LUNES, [self.cancha_1])
+
+        materializar_horarios_academia(self.lunes, self.usuario)
+        materializar_horarios_academia(self.lunes, self.usuario)
+
+        self.assertEqual(Reserva.objects.filter(academia=self.academia, fecha=self.lunes).count(), 1)
+
+    def test_no_materializa_en_dia_de_la_semana_distinto(self):
+        self._crear_horario(AcademiaHorario.Dia.MARTES, [self.cancha_1])
+
+        materializar_horarios_academia(self.lunes, self.usuario)  # self.lunes es Lunes
+
+        self.assertEqual(Reserva.objects.filter(academia=self.academia).count(), 0)
+
+    def test_no_materializa_hacia_el_pasado(self):
+        self._crear_horario(AcademiaHorario.Dia.LUNES, [self.cancha_1])
+        un_lunes_pasado = date(2020, 1, 6)  # tambien lunes, pero muy en el pasado
+
+        materializar_horarios_academia(un_lunes_pasado, self.usuario)
+
+        self.assertEqual(Reserva.objects.filter(academia=self.academia).count(), 0)
+
+    def test_no_pisa_una_cancha_ya_ocupada(self):
+        Reserva.objects.create(
+            modalidad=Modalidad.INDIVIDUAL, cliente_nombre='Cliente manual', fecha=self.lunes,
+            hora_inicio=time(18, 0), hora_fin=time(19, 0), precio_total='70.00',
+            asignada_por=self.usuario,
+        )
+        # Sin ReservaCancha para simplificar: se prueba el caso comun de
+        # abajo, con la cancha si tomada, que es el que importa de verdad.
+        reserva_manual = Reserva.objects.get(cliente_nombre='Cliente manual')
+        ReservaCancha.objects.create(reserva=reserva_manual, cancha=self.cancha_1)
+        self._crear_horario(AcademiaHorario.Dia.LUNES, [self.cancha_1])
+
+        materializar_horarios_academia(self.lunes, self.usuario)
+
+        self.assertEqual(Reserva.objects.filter(academia=self.academia).count(), 0)
