@@ -202,7 +202,11 @@ export default function PanelDisponibilidad() {
       <div className="mb-5 flex items-center justify-between" style={ANIMADO}>
         <div>
           <h2 className="text-2xl font-bold text-slate-900">Reservas</h2>
-          <div className="mt-1 flex items-center gap-1.5 text-sm text-slate-500">
+          <div
+            key={fecha}
+            className="mt-1 flex items-center gap-1.5 text-sm text-slate-500"
+            style={{ animation: 'fade-slide-up 220ms cubic-bezier(0.16, 1, 0.3, 1) both' }}
+          >
             <span aria-hidden="true">📅</span>
             <span>{formatearFechaLarga(fecha)}</span>
           </div>
@@ -230,12 +234,18 @@ export default function PanelDisponibilidad() {
 
       <div className="flex gap-6">
         <div className="min-w-0 flex-1">
-          {cargando && <p>Cargando...</p>}
           {error && <p className="text-red-600">{error}</p>}
+          {/* Solo se muestra "Cargando..." la primerísima vez (antes de tener
+              ninguna cancha todavía). En cambios de fecha posteriores la
+              grilla se queda a la vista y solo se atenua -- reemplazarla de
+              golpe por "Cargando..." es lo que se sentía brusco. */}
+          {!error && cargando && canchas.length === 0 && <p>Cargando...</p>}
 
-          {!cargando && !error && (
+          {!error && canchas.length > 0 && (
             <div
-              className="max-h-[68vh] overflow-auto rounded-xl border border-slate-200 bg-white shadow-sm"
+              className={`max-h-[68vh] overflow-auto rounded-xl border border-slate-200 bg-white shadow-sm transition-opacity duration-300 ${
+                cargando ? 'pointer-events-none opacity-40' : 'opacity-100'
+              }`}
               style={{ ...ANIMADO, animationDelay: '60ms' }}
             >
               <table className="w-full table-fixed border-collapse text-sm">
@@ -341,12 +351,12 @@ export default function PanelDisponibilidad() {
             </div>
           )}
 
-          <div style={{ ...ANIMADO, animationDelay: '150ms' }}>
+          <div key={`total-wrap-${fecha}`} style={{ ...ANIMADO, animationDelay: '150ms' }}>
             <TotalDelDia key={`total-${fecha}`} fecha={fecha} />
           </div>
         </div>
 
-        <div className="w-80 shrink-0" style={{ ...ANIMADO, animationDelay: '100ms' }}>
+        <div key={`comentarios-wrap-${fecha}`} className="w-80 shrink-0" style={{ ...ANIMADO, animationDelay: '100ms' }}>
           <ComentariosDia key={`comentarios-${fecha}`} fecha={fecha} />
         </div>
       </div>
