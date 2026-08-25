@@ -5,6 +5,7 @@ import PanelLayout from './components/PanelLayout'
 import PanelDisponibilidad from './components/PanelDisponibilidad'
 import HorariosPublicos from './components/HorariosPublicos'
 import DashboardFinanciero from './components/DashboardFinanciero'
+import Academias from './components/Academias'
 
 function PanelConLogin() {
   const { autenticado } = useAuth()
@@ -34,6 +35,20 @@ function DashboardConLogin() {
   )
 }
 
+function AcademiasConLogin() {
+  const { autenticado } = useAuth()
+
+  if (!autenticado) {
+    return <Login />
+  }
+
+  return (
+    <PanelLayout>
+      <Academias />
+    </PanelLayout>
+  )
+}
+
 function App() {
   return (
     <AuthProvider>
@@ -41,6 +56,7 @@ function App() {
         <Routes>
           <Route path="/horarios" element={<HorariosPublicos />} />
           <Route path="/dashboard" element={<DashboardConLogin />} />
+          <Route path="/academias" element={<AcademiasConLogin />} />
           <Route path="/" element={<PanelConLogin />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

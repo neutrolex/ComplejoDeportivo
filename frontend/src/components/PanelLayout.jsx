@@ -1,11 +1,12 @@
 import { Link, useLocation } from 'react-router-dom'
-import { BarChart3, Calendar, Trophy } from 'lucide-react'
+import { BarChart3, Building2, Calendar, Trophy } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { Button } from './ui/button'
 
 const NAV = [
   { to: '/dashboard', label: 'Dashboard', icono: BarChart3 },
   { to: '/', label: 'Administración de campo', icono: Calendar },
+  { to: '/academias', label: 'Academias', icono: Building2 },
 ]
 
 export default function PanelLayout({ children }) {

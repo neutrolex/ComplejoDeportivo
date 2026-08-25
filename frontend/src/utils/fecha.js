@@ -39,3 +39,12 @@ export function formatearFechaLarga(fechaTexto) {
   const fecha = parsearFecha(fechaTexto)
   return `${NOMBRES_DIA_LARGO[fecha.getDay()]} ${fecha.getDate()} de ${NOMBRES_MES_MINUSCULA[fecha.getMonth()]}`
 }
+
+export function generarOpcionesHora() {
+  const opciones = []
+  for (let h = 0; h < 24; h++) {
+    opciones.push(`${String(h).padStart(2, '0')}:00`)
+    opciones.push(`${String(h).padStart(2, '0')}:30`)
+  }
+  return opciones
+}
