@@ -79,7 +79,11 @@ function ContenidoReserva({ reserva, extra }) {
   return (
     <>
       <div className="flex w-full min-w-0 items-center gap-2">
-        <span className="min-w-0 truncate font-semibold text-rose-700" style={colorTextoAcademia(reserva)}>{reserva.cliente_nombre}</span>
+        {/* cliente_nombre es una foto del nombre al momento de materializar:
+            si la academia se renombro despues, la celda mostraria el nombre
+            viejo con el color nuevo. Se prefiere el nombre vivo de la
+            academia y se cae a cliente_nombre para reservas sin academia. */}
+        <span className="min-w-0 truncate font-semibold text-rose-700" style={colorTextoAcademia(reserva)}>{reserva.academia?.nombre ?? reserva.cliente_nombre}</span>
         {extra}
       </div>
       <span className="flex items-center gap-1 text-xs text-rose-500">
