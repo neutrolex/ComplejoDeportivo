@@ -235,7 +235,7 @@ export default function PanelDisponibilidad() {
 
           {!cargando && !error && (
             <div
-              className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
+              className="max-h-[68vh] overflow-auto rounded-xl border border-slate-200 bg-white shadow-sm"
               style={{ ...ANIMADO, animationDelay: '60ms' }}
             >
               <table className="w-full table-fixed border-collapse text-sm">
@@ -246,13 +246,13 @@ export default function PanelDisponibilidad() {
                 </colgroup>
                 <thead>
                   <tr className="bg-slate-800 text-white">
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">Hora</th>
+                    <th className="sticky top-0 z-10 bg-slate-800 px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide">Hora</th>
                     {canchas.map((c) => (
-                      <th key={c.id} className="truncate px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">
+                      <th key={c.id} className="sticky top-0 z-10 truncate bg-slate-800 px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide">
                         Cancha {c.numero}
                       </th>
                     ))}
-                    <th className="truncate px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">Campo completo</th>
+                    <th className="sticky top-0 z-10 truncate bg-slate-800 px-3 py-2.5 text-left text-xs font-semibold uppercase">Campo completo</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -265,14 +265,14 @@ export default function PanelDisponibilidad() {
                     if (completoInfo.tipo === 'cubierto') {
                       return (
                         <tr key={bloque} className={filaClase}>
-                          <td className={`px-4 py-2 align-top ${horaClase}`}>{horaTexto(bloque)}</td>
+                          <td className={`px-4 py-1.5 align-top ${horaClase}`}>{horaTexto(bloque)}</td>
                         </tr>
                       )
                     }
 
                     return (
                       <tr key={bloque} className={filaClase}>
-                        <td className={`px-4 py-2 align-top ${horaClase}`}>{horaTexto(bloque)}</td>
+                        <td className={`px-4 py-1.5 align-top ${horaClase}`}>{horaTexto(bloque)}</td>
                         {completoInfo.tipo === 'inicio' ? (
                           <td colSpan={canchas.length + 1} rowSpan={completoInfo.rowSpan} className="px-2 py-1.5 align-top">
                             <button
@@ -303,29 +303,29 @@ export default function PanelDisponibilidad() {
                               }
                               if (info.tipo === 'bloqueada') {
                                 return (
-                                  <td key={c.id} className="px-2 py-1.5">
-                                    <div className="px-3 py-2 text-slate-300">-</div>
+                                  <td key={c.id} className="px-2 py-1">
+                                    <div className="px-3 py-1.5 text-slate-300">-</div>
                                   </td>
                                 )
                               }
                               return (
-                                <td key={c.id} className="px-2 py-1.5">
+                                <td key={c.id} className="px-2 py-1">
                                   <button
                                     onClick={() => abrirCrear(bloque, c)}
-                                    className="w-full rounded-lg px-3 py-2 text-left text-slate-400 transition-colors hover:bg-emerald-50 hover:text-emerald-700"
+                                    className="w-full rounded-lg px-3 py-1.5 text-left text-slate-400 transition-colors hover:bg-emerald-50 hover:text-emerald-700"
                                   >
                                     Libre
                                   </button>
                                 </td>
                               )
                             })}
-                            <td className="px-2 py-1.5">
+                            <td className="px-2 py-1">
                               {canchas.some((c) => grilla[c.id][filaIdx].tipo !== 'libre') ? (
-                                <div className="px-3 py-2 text-slate-300">-</div>
+                                <div className="px-3 py-1.5 text-slate-300">-</div>
                               ) : (
                                 <button
                                   onClick={() => abrirCrearCompleto(bloque)}
-                                  className="w-full truncate rounded-lg px-3 py-2 text-left text-slate-400 transition-colors hover:bg-emerald-50 hover:text-emerald-700"
+                                  className="w-full truncate rounded-lg px-3 py-1.5 text-left text-slate-400 transition-colors hover:bg-emerald-50 hover:text-emerald-700"
                                 >
                                   Reservar todo
                                 </button>
