@@ -2,13 +2,60 @@ from decimal import Decimal
 
 from rest_framework import serializers
 
-from .models import Academia, Cancha, ComentarioDia, Modalidad, Pago, Reserva, Tarifa
+from .models import Academia, AcademiaHorario, Cancha, ComentarioDia, Modalidad, Pago, Reserva, Tarifa
+
+
+class AcademiaResumenSerializer(serializers.ModelSerializer):
+    """Version chica de Academia, para anidar en ReservaSerializer sin
+    traer todos los horarios en cada reserva."""
+    class Meta:
+        model = Academia
+        fields = ['id', 'nombre', 'color']
+
+
+class AcademiaHorarioSerializer(serializers.ModelSerializer):
+    canchas = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
+
+    class Meta:
+        model = AcademiaHorario
+        fields = ['id', 'dia_semana', 'hora_inicio', 'hora_fin', 'canchas']
 
 
 class AcademiaSerializer(serializers.ModelSerializer):
+    horarios = AcademiaHorarioSerializer(many=True, read_only=True)
+
     class Meta:
         model = Academia
-        fields = ['id', 'nombre']
+        fields = ['id', 'nombre', 'color', 'permiso_mostrar', 'horarios']
+
+
+class HorarioEntradaSerializer(serializers.Serializer):
+    dias = serializers.ListField(
+        child=serializers.IntegerField(min_value=0, max_value=6), allow_empty=False,
+    )
+    hora_inicio = serializers.TimeField()
+    hora_fin = serializers.TimeField()
+    canchas = serializers.PrimaryKeyRelatedField(
+        queryset=Cancha.objects.filter(activa=True), many=True,
+    )
+
+    def validate_canchas(self, canchas):
+        if not canchas:
+            raise serializers.ValidationError('Debe elegir al menos una cancha.')
+        return canchas
+
+    def validate(self, datos):
+        termina_a_medianoche = datos['hora_fin'].hour == 0 and datos['hora_fin'].minute == 0
+        if datos['hora_fin'] <= datos['hora_inicio'] and not termina_a_medianoche:
+            raise serializers.ValidationError('La hora de fin debe ser posterior a la de inicio.')
+        return datos
+
+
+class AcademiaEntradaSerializer(serializers.Serializer):
+    nombre = serializers.CharField(max_length=150)
+    color = serializers.CharField(max_length=7, required=False, default='#7c3aed')
+    permiso_mostrar = serializers.BooleanField(required=False, default=True)
+    horarios = HorarioEntradaSerializer(many=True, required=False, default=list)
 
 
 class CanchaSerializer(serializers.ModelSerializer):
@@ -35,12 +82,13 @@ class PagoSerializer(serializers.ModelSerializer):
 class ReservaSerializer(serializers.ModelSerializer):
     canchas = serializers.SerializerMethodField()
     pagos = PagoSerializer(many=True, read_only=True)
+    academia = AcademiaResumenSerializer(read_only=True)
 
     class Meta:
         model = Reserva
         fields = [
             'id', 'modalidad', 'cliente_nombre', 'fecha', 'hora_inicio',
-            'hora_fin', 'estado', 'precio_total', 'canchas', 'pagos',
+            'hora_fin', 'estado', 'precio_total', 'canchas', 'pagos', 'academia',
         ]
 
     def get_canchas(self, reserva):

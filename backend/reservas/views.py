@@ -11,8 +11,9 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Academia, Cancha, ComentarioDia, Modalidad, Pago, Reserva, ReservaCancha, Tarifa
+from .models import Academia, AcademiaHorario, Cancha, ComentarioDia, Modalidad, Pago, Reserva, ReservaCancha, Tarifa
 from .serializers import (
+    AcademiaEntradaSerializer,
     AcademiaSerializer,
     CanchaSerializer,
     ComentarioDiaSerializer,
@@ -33,10 +34,57 @@ from .servicios import (
 )
 
 
-class AcademiaListView(ListAPIView):
-    queryset = Academia.objects.all()
-    serializer_class = AcademiaSerializer
+class AcademiaViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
+
+    def list(self, request):
+        academias = Academia.objects.prefetch_related('horarios__canchas')
+        return Response(AcademiaSerializer(academias, many=True).data)
+
+    def create(self, request):
+        entrada = AcademiaEntradaSerializer(data=request.data)
+        entrada.is_valid(raise_exception=True)
+        academia = self._guardar(entrada.validated_data)
+        return Response(AcademiaSerializer(academia).data, status=status.HTTP_201_CREATED)
+
+    def partial_update(self, request, pk=None):
+        try:
+            academia = Academia.objects.get(pk=pk)
+        except Academia.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        entrada = AcademiaEntradaSerializer(data=request.data)
+        entrada.is_valid(raise_exception=True)
+        academia = self._guardar(entrada.validated_data, academia=academia)
+        return Response(AcademiaSerializer(academia).data)
+
+    def destroy(self, request, pk=None):
+        try:
+            academia = Academia.objects.get(pk=pk)
+        except Academia.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        academia.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def _guardar(self, datos, academia=None):
+        with transaction.atomic():
+            if academia is None:
+                academia = Academia.objects.create(
+                    nombre=datos['nombre'], color=datos['color'], permiso_mostrar=datos['permiso_mostrar'],
+                )
+            else:
+                academia.nombre = datos['nombre']
+                academia.color = datos['color']
+                academia.permiso_mostrar = datos['permiso_mostrar']
+                academia.save(update_fields=['nombre', 'color', 'permiso_mostrar'])
+                academia.horarios.all().delete()
+            for horario in datos['horarios']:
+                for dia in horario['dias']:
+                    fila = AcademiaHorario.objects.create(
+                        academia=academia, dia_semana=dia,
+                        hora_inicio=horario['hora_inicio'], hora_fin=horario['hora_fin'],
+                    )
+                    fila.canchas.set(horario['canchas'])
+        return academia
 
 
 class CanchaListView(ListAPIView):
