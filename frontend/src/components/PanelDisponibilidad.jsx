@@ -46,6 +46,19 @@ function montosDeReserva(reserva) {
   return { yape: suma('yape'), efectivo: suma('efectivo') }
 }
 
+function estiloAcademia(reserva) {
+  if (!reserva.academia) return {}
+  const color = reserva.academia.color
+  return {
+    backgroundColor: `color-mix(in srgb, ${color} 12%, white)`,
+    borderColor: `color-mix(in srgb, ${color} 45%, white)`,
+  }
+}
+
+function colorTextoAcademia(reserva) {
+  return reserva.academia ? { color: reserva.academia.color } : {}
+}
+
 function BadgesPago({ reserva }) {
   // Si no se pago nada, un unico badge "Pendiente". En cuanto hay algun
   // pago, se muestran los DOS montos (aunque uno sea S/0.00) para que
@@ -66,7 +79,7 @@ function ContenidoReserva({ reserva, extra }) {
   return (
     <>
       <div className="flex w-full min-w-0 items-center gap-2">
-        <span className="min-w-0 truncate font-semibold text-rose-700">{reserva.cliente_nombre}</span>
+        <span className="min-w-0 truncate font-semibold text-rose-700" style={colorTextoAcademia(reserva)}>{reserva.cliente_nombre}</span>
         {extra}
       </div>
       <span className="flex items-center gap-1 text-xs text-rose-500">
@@ -289,6 +302,7 @@ export default function PanelDisponibilidad() {
                               onClick={() => abrirEditar(completoInfo.reserva, 'Campo completo')}
                               title={completoInfo.reserva.cliente_nombre}
                               className="flex h-full w-full min-w-0 flex-col items-start justify-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-left"
+                              style={estiloAcademia(completoInfo.reserva)}
                             >
                               <ContenidoReserva reserva={completoInfo.reserva} extra={<Badge className="shrink-0">Campo completo</Badge>} />
                             </button>
@@ -305,6 +319,7 @@ export default function PanelDisponibilidad() {
                                       onClick={() => abrirEditar(info.reserva, `Cancha ${c.numero}`)}
                                       title={info.reserva.cliente_nombre}
                                       className="flex h-full w-full min-w-0 flex-col items-start justify-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-left"
+                                      style={estiloAcademia(info.reserva)}
                                     >
                                       <ContenidoReserva reserva={info.reserva} />
                                     </button>
