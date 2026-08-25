@@ -106,6 +106,41 @@ class AcademiasApiTest(APITestCase):
         }, format='json')
         self.assertEqual(response.status_code, 400)
 
+    def test_horario_fuera_del_horario_de_tarifas_devuelve_400(self):
+        # Las tarifas cubren de 08:00 a 00:00. Un horario que empieza a las
+        # 03:00 se guardaria sin error pero nunca se materializaria (no hay
+        # tarifa), asi que se rechaza al crearlo.
+        cancha = Cancha.objects.get(numero=1)
+        response = self.client.post('/api/academias/', {
+            'nombre': 'Madrugada',
+            'horarios': [
+                {'dias': [0], 'hora_inicio': '03:00', 'hora_fin': '04:00', 'canchas': [cancha.id]},
+            ],
+        }, format='json')
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(Academia.objects.count(), 0)
+
+    def test_hora_inicio_igual_a_hora_fin_devuelve_400(self):
+        cancha = Cancha.objects.get(numero=1)
+        response = self.client.post('/api/academias/', {
+            'nombre': 'Franja vacia',
+            'horarios': [
+                {'dias': [0], 'hora_inicio': '00:00', 'hora_fin': '00:00', 'canchas': [cancha.id]},
+            ],
+        }, format='json')
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(Academia.objects.count(), 0)
+
+    def test_horario_que_termina_a_medianoche_se_acepta(self):
+        cancha = Cancha.objects.get(numero=1)
+        response = self.client.post('/api/academias/', {
+            'nombre': 'Nocturna',
+            'horarios': [
+                {'dias': [0], 'hora_inicio': '23:00', 'hora_fin': '00:00', 'canchas': [cancha.id]},
+            ],
+        }, format='json')
+        self.assertEqual(response.status_code, 201)
+
     def test_horario_sin_canchas_devuelve_400(self):
         response = self.client.post('/api/academias/', {
             'nombre': 'Sin cancha',

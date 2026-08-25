@@ -478,6 +478,64 @@ class MaterializarHorariosAcademiaTest(TestCase):
 
         self.assertEqual(Reserva.objects.filter(academia=self.academia).count(), 0)
 
+    def test_no_recrea_una_reserva_cancelada(self):
+        # Cancelar una ocurrencia puntual es la valvula de escape documentada
+        # en el diseno: una reserva cancelada es un "saltar esta vez", no un
+        # "nunca existio", asi que la siguiente materializacion no la revive.
+        self._crear_horario(AcademiaHorario.Dia.LUNES, [self.cancha_1])
+        materializar_horarios_academia(self.lunes, self.usuario)
+        reserva = Reserva.objects.get(academia=self.academia, fecha=self.lunes)
+        reserva.estado = Reserva.Estado.CANCELADA
+        reserva.save(update_fields=['estado'])
+
+        materializar_horarios_academia(self.lunes, self.usuario)
+
+        self.assertEqual(Reserva.objects.filter(academia=self.academia, fecha=self.lunes).count(), 1)
+        self.assertEqual(
+            Reserva.objects.filter(
+                academia=self.academia, fecha=self.lunes,
+            ).exclude(estado=Reserva.Estado.CANCELADA).count(),
+            0,
+        )
+
+    def test_dos_horarios_misma_hora_distintas_canchas_materializan_los_dos(self):
+        # La idempotencia es por (academia, fecha, hora, cancha): dos filas de
+        # AcademiaHorario a la misma hora pero en canchas distintas son dos
+        # ocurrencias distintas, no un duplicado.
+        self._crear_horario(AcademiaHorario.Dia.LUNES, [self.cancha_1])
+        self._crear_horario(AcademiaHorario.Dia.LUNES, [self.cancha_2])
+
+        materializar_horarios_academia(self.lunes, self.usuario)
+
+        reservas = Reserva.objects.filter(academia=self.academia, fecha=self.lunes)
+        self.assertEqual(reservas.count(), 2)
+        canchas = {rc.cancha_id for r in reservas for rc in r.canchas_asignadas.all()}
+        self.assertEqual(canchas, {self.cancha_1.id, self.cancha_2.id})
+
+    def test_completa_la_cancha_que_faltaba_cuando_se_libera_el_conflicto(self):
+        # Materializacion parcial: la cancha 1 estaba tomada por una reserva
+        # manual, asi que solo se creo la de la cancha 2. Al liberarse la
+        # cancha 1, la siguiente materializacion debe completarla.
+        manual = Reserva.objects.create(
+            modalidad=Modalidad.INDIVIDUAL, cliente_nombre='Cliente manual', fecha=self.lunes,
+            hora_inicio=time(18, 0), hora_fin=time(19, 0), precio_total='70.00',
+            asignada_por=self.usuario,
+        )
+        ReservaCancha.objects.create(reserva=manual, cancha=self.cancha_1)
+        self._crear_horario(AcademiaHorario.Dia.LUNES, [self.cancha_1, self.cancha_2])
+
+        materializar_horarios_academia(self.lunes, self.usuario)
+        self.assertEqual(Reserva.objects.filter(academia=self.academia, fecha=self.lunes).count(), 1)
+
+        manual.estado = Reserva.Estado.CANCELADA
+        manual.save(update_fields=['estado'])
+        materializar_horarios_academia(self.lunes, self.usuario)
+
+        reservas = Reserva.objects.filter(academia=self.academia, fecha=self.lunes)
+        self.assertEqual(reservas.count(), 2)
+        canchas = {rc.cancha_id for r in reservas for rc in r.canchas_asignadas.all()}
+        self.assertEqual(canchas, {self.cancha_1.id, self.cancha_2.id})
+
     def test_no_pisa_una_cancha_ya_ocupada(self):
         Reserva.objects.create(
             modalidad=Modalidad.INDIVIDUAL, cliente_nombre='Cliente manual', fecha=self.lunes,

@@ -3,6 +3,7 @@ from decimal import Decimal
 from rest_framework import serializers
 
 from .models import Academia, AcademiaHorario, Cancha, ComentarioDia, Modalidad, Pago, Reserva, Tarifa
+from .servicios import obtener_tarifa
 
 
 class AcademiaResumenSerializer(serializers.ModelSerializer):
@@ -45,9 +46,25 @@ class HorarioEntradaSerializer(serializers.Serializer):
         return canchas
 
     def validate(self, datos):
+        # Se chequea la igualdad aparte porque el caso especial de
+        # medianoche dejaba pasar hora_inicio == hora_fin == 00:00, que
+        # describiria una franja absurda de 24 horas.
+        if datos['hora_inicio'] == datos['hora_fin']:
+            raise serializers.ValidationError('La hora de fin debe ser posterior a la de inicio.')
         termina_a_medianoche = datos['hora_fin'].hour == 0 and datos['hora_fin'].minute == 0
         if datos['hora_fin'] <= datos['hora_inicio'] and not termina_a_medianoche:
             raise serializers.ValidationError('La hora de fin debe ser posterior a la de inicio.')
+        # Sin tarifa que cubra la hora de inicio, la materializacion se
+        # saltea el horario en silencio y la academia nunca aparece en la
+        # grilla: mejor rechazarlo al guardarlo. Se prueba con INDIVIDUAL
+        # porque AcademiaHorario todavia no sabe si terminara siendo
+        # completo o individual, y ambas modalidades comparten las mismas
+        # franjas horarias (08:00 a 00:00), solo cambia el precio.
+        if obtener_tarifa(Modalidad.INDIVIDUAL, datos['hora_inicio']) is None:
+            raise serializers.ValidationError(
+                'No hay tarifa configurada para esa hora: el horario debe empezar '
+                'dentro del horario de atencion (08:00 a 00:00).'
+            )
         return datos
 
 

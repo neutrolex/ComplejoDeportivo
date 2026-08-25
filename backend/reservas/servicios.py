@@ -6,7 +6,9 @@ from django.db.models import Sum
 from django.db.models.functions import TruncDate
 from django.utils import timezone
 
-from .models import AcademiaHorario, ComentarioDia, Modalidad, Pago, Reserva, ReservaCancha, Tarifa
+from .models import (
+    Academia, AcademiaHorario, ComentarioDia, Modalidad, Pago, Reserva, ReservaCancha, Tarifa,
+)
 
 
 def fecha_valida(texto):
@@ -230,14 +232,41 @@ def resumen_financiero_dashboard(hoy):
     }
 
 
+def canchas_ya_decididas(academia_id, fecha, hora_inicio, cancha_ids):
+    """De la lista cancha_ids, las que ya tienen una Reserva de esa academia
+    en (fecha, hora_inicio) -- INCLUIDAS las canceladas. A diferencia de
+    canchas_ocupadas() (que es para conflictos de reservas manuales y por
+    eso ignora las canceladas), aca una reserva cancelada cuenta: cancelar
+    una ocurrencia a mano es la valvula de escape documentada en el diseno
+    para saltear un dia puntual, y revivirla en la siguiente materializacion
+    la volveria inutil (y podria duplicar un pago ya registrado).
+
+    La clave de idempotencia incluye la cancha justamente para que dos
+    horarios de la misma academia a la misma hora en canchas distintas se
+    materialicen los dos, y para que una materializacion parcial (una cancha
+    estaba tomada) pueda completarse despues."""
+    return set(
+        ReservaCancha.objects.filter(
+            cancha_id__in=cancha_ids,
+            reserva__academia_id=academia_id,
+            reserva__fecha=fecha,
+            reserva__hora_inicio=hora_inicio,
+        ).values_list('cancha_id', flat=True)
+    )
+
+
 def materializar_horarios_academia(fecha, usuario):
     """Por cada AcademiaHorario cuyo dia_semana coincide con 'fecha', crea
     la Reserva real que falte (con su ReservaCancha) -- no hace nada si ya
-    existe, si la fecha es pasada, si no hay tarifa configurada para esa
-    hora, o si la cancha ya esta ocupada. Se llama desde
-    ReservaViewSet.list() antes de devolver las reservas del dia: no hay
-    ningun proceso en segundo plano, se materializa perezosamente la
-    primera vez que alguien mira ese dia."""
+    existe (o si existio y se cancelo a mano), si la fecha es pasada, si no
+    hay tarifa configurada para esa hora, o si la cancha ya esta ocupada. Se
+    llama desde ReservaViewSet.list() antes de devolver las reservas del
+    dia: no hay ningun proceso en segundo plano, se materializa
+    perezosamente la primera vez que alguien mira ese dia.
+
+    Invariante: una vez que una cancha/hora de una academia quedo decidida
+    (materializada y viva, o materializada y cancelada a mano) no se toca
+    nunca mas; solo se completan las canchas que nunca se decidieron."""
     if fecha < timezone.localdate():
         return
 
@@ -247,12 +276,6 @@ def materializar_horarios_academia(fecha, usuario):
         .prefetch_related('canchas')
     )
     for horario in horarios:
-        ya_existe = Reserva.objects.filter(
-            academia=horario.academia, fecha=fecha, hora_inicio=horario.hora_inicio,
-        ).exclude(estado=Reserva.Estado.CANCELADA).exists()
-        if ya_existe:
-            continue
-
         cancha_ids = list(horario.canchas.values_list('id', flat=True))
         if not cancha_ids:
             continue
@@ -273,10 +296,21 @@ def materializar_horarios_academia(fecha, usuario):
         duracion_horas = Decimal(fin_min - inicio_min) / Decimal(60)
         precio_total = (tarifa.precio_por_hora * duracion_horas).quantize(Decimal('0.01'))
 
-        for grupo in grupos:
-            if canchas_ocupadas(fecha, horario.hora_inicio, horario.hora_fin, grupo):
-                continue
-            with transaction.atomic():
+        # La verificacion y la creacion van dentro de la misma transaccion,
+        # detras de un lock sobre la fila de la academia, para que dos GET
+        # simultaneos del mismo dia (StrictMode remontando el efecto, dos
+        # admins mirando la misma fecha) se serialicen en vez de ver los dos
+        # "todavia no existe" y crear cada uno su copia.
+        with transaction.atomic():
+            Academia.objects.select_for_update().filter(pk=horario.academia_id).first()
+            for grupo in grupos:
+                decididas = canchas_ya_decididas(
+                    horario.academia_id, fecha, horario.hora_inicio, grupo,
+                )
+                if decididas.issuperset(grupo):
+                    continue
+                if canchas_ocupadas(fecha, horario.hora_inicio, horario.hora_fin, grupo):
+                    continue
                 reserva = Reserva.objects.create(
                     modalidad=modalidad, cliente_nombre=horario.academia.nombre, fecha=fecha,
                     hora_inicio=horario.hora_inicio, hora_fin=horario.hora_fin,

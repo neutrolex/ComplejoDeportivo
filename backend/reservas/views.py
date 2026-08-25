@@ -120,6 +120,7 @@ class ReservaViewSet(viewsets.ViewSet):
         reservas = (
             Reserva.objects.filter(fecha=fecha)
             .exclude(estado=Reserva.Estado.CANCELADA)
+            .select_related('academia')
             .prefetch_related('canchas_asignadas', 'pagos')
         )
         return Response(ReservaSerializer(reservas, many=True).data)
