@@ -119,9 +119,7 @@ class CrearReservaApiTest(APITestCase):
         self.assertEqual(response.status_code, 400)
 
     def test_crea_reserva_vinculada_a_una_academia(self):
-        academia = Academia.objects.create(
-            nombre='Talentos FC', horario_uso='Martes', permiso_mostrar=True,
-        )
+        academia = Academia.objects.create(nombre='Talentos FC', permiso_mostrar=True)
         cancha = Cancha.objects.get(numero=1)
         response = self.client.post('/api/reservas/', {
             'fecha': '2026-08-20',

@@ -2,7 +2,7 @@ from datetime import time
 
 from django.test import TestCase
 
-from reservas.models import Academia, Cancha, ComentarioDia, Modalidad, Reserva
+from reservas.models import Academia, AcademiaHorario, Cancha, ComentarioDia, Modalidad, Reserva
 from usuarios.models import UsuarioInterno
 
 
@@ -56,19 +56,43 @@ class ReservaAcademiaTest(TestCase):
         self.assertIsNone(reserva.academia)
 
     def test_reserva_se_puede_vincular_a_una_academia(self):
-        academia = Academia.objects.create(
-            nombre='Talentos FC', horario_uso='Martes y jueves', permiso_mostrar=True,
-        )
+        academia = Academia.objects.create(nombre='Talentos FC', permiso_mostrar=True)
         reserva = self._crear_reserva(academia=academia)
         self.assertEqual(reserva.academia_id, academia.id)
 
     def test_borrar_la_academia_no_borra_la_reserva(self):
-        academia = Academia.objects.create(
-            nombre='Talentos FC', horario_uso='Martes y jueves', permiso_mostrar=True,
-        )
+        academia = Academia.objects.create(nombre='Talentos FC', permiso_mostrar=True)
         reserva = self._crear_reserva(academia=academia)
 
         academia.delete()
         reserva.refresh_from_db()
 
         self.assertIsNone(reserva.academia)
+
+
+class AcademiaHorarioTest(TestCase):
+    def setUp(self):
+        self.academia = Academia.objects.create(nombre='Talentos FC')
+        self.cancha_2 = Cancha.objects.get(numero=2)
+        self.cancha_3 = Cancha.objects.get(numero=3)
+
+    def test_color_por_defecto(self):
+        self.assertEqual(self.academia.color, '#7c3aed')
+
+    def test_crea_horario_con_varias_canchas(self):
+        horario = AcademiaHorario.objects.create(
+            academia=self.academia, dia_semana=AcademiaHorario.Dia.LUNES,
+            hora_inicio=time(21, 0), hora_fin=time(22, 0),
+        )
+        horario.canchas.set([self.cancha_2, self.cancha_3])
+
+        self.assertEqual(self.academia.horarios.count(), 1)
+        self.assertEqual(set(horario.canchas.values_list('numero', flat=True)), {2, 3})
+
+    def test_borrar_academia_borra_sus_horarios(self):
+        AcademiaHorario.objects.create(
+            academia=self.academia, dia_semana=AcademiaHorario.Dia.LUNES,
+            hora_inicio=time(21, 0), hora_fin=time(22, 0),
+        )
+        self.academia.delete()
+        self.assertEqual(AcademiaHorario.objects.count(), 0)

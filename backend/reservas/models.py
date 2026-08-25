@@ -128,8 +128,8 @@ class Pago(models.Model):
 
 class Academia(models.Model):
     nombre = models.CharField(max_length=150)
-    horario_uso = models.CharField(max_length=255)
     permiso_mostrar = models.BooleanField(default=True)
+    color = models.CharField(max_length=7, default='#7c3aed')
 
     class Meta:
         db_table = 'academias'
@@ -137,6 +137,32 @@ class Academia(models.Model):
 
     def __str__(self):
         return self.nombre
+
+
+class AcademiaHorario(models.Model):
+    class Dia(models.IntegerChoices):
+        # Mismo criterio que date.weekday() de Python (Lunes=0), para que
+        # la materializacion compare directo sin conversion.
+        LUNES = 0, 'Lunes'
+        MARTES = 1, 'Martes'
+        MIERCOLES = 2, 'Miercoles'
+        JUEVES = 3, 'Jueves'
+        VIERNES = 4, 'Viernes'
+        SABADO = 5, 'Sabado'
+        DOMINGO = 6, 'Domingo'
+
+    academia = models.ForeignKey(Academia, on_delete=models.CASCADE, related_name='horarios')
+    dia_semana = models.IntegerField(choices=Dia.choices)
+    hora_inicio = models.TimeField()
+    hora_fin = models.TimeField()
+    canchas = models.ManyToManyField(Cancha, related_name='horarios_academia')
+
+    class Meta:
+        db_table = 'academia_horarios'
+        ordering = ['dia_semana', 'hora_inicio']
+
+    def __str__(self):
+        return f'{self.academia.nombre} - {self.get_dia_semana_display()} {self.hora_inicio}'
 
 
 class ComentarioDia(models.Model):

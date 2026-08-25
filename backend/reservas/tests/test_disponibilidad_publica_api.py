@@ -64,9 +64,7 @@ class DisponibilidadPublicaApiTest(APITestCase):
         self.assertIsNone(hora_10['canchas']['1']['academia'])
 
     def test_academia_con_permiso_muestra_nombre(self):
-        academia = Academia.objects.create(
-            nombre='Talentos FC', horario_uso='Martes y jueves', permiso_mostrar=True,
-        )
+        academia = Academia.objects.create(nombre='Talentos FC', permiso_mostrar=True)
         cancha = Cancha.objects.get(numero=2)
         self._crear_reserva([cancha.id], cliente='Talentos FC', academia=academia)
 
@@ -76,9 +74,7 @@ class DisponibilidadPublicaApiTest(APITestCase):
         self.assertEqual(hora_10['canchas']['2']['academia'], 'Talentos FC')
 
     def test_academia_sin_permiso_no_muestra_nombre(self):
-        academia = Academia.objects.create(
-            nombre='Potrillos', horario_uso='Lunes', permiso_mostrar=False,
-        )
+        academia = Academia.objects.create(nombre='Potrillos', permiso_mostrar=False)
         cancha = Cancha.objects.get(numero=3)
         self._crear_reserva([cancha.id], cliente='Potrillos', academia=academia)
 

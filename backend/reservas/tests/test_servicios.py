@@ -133,16 +133,12 @@ class NombreAcademiaVisibleTest(TestCase):
         self.assertIsNone(nombre_academia_visible(reserva))
 
     def test_academia_con_permiso_devuelve_su_nombre(self):
-        academia = Academia.objects.create(
-            nombre='Talentos FC', horario_uso='Martes', permiso_mostrar=True,
-        )
+        academia = Academia.objects.create(nombre='Talentos FC', permiso_mostrar=True)
         reserva = self._crear_reserva(academia=academia)
         self.assertEqual(nombre_academia_visible(reserva), 'Talentos FC')
 
     def test_academia_sin_permiso_devuelve_none(self):
-        academia = Academia.objects.create(
-            nombre='Potrillos', horario_uso='Lunes', permiso_mostrar=False,
-        )
+        academia = Academia.objects.create(nombre='Potrillos', permiso_mostrar=False)
         reserva = self._crear_reserva(academia=academia)
         self.assertIsNone(nombre_academia_visible(reserva))
 

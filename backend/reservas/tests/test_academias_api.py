@@ -16,8 +16,8 @@ class AcademiasApiTest(APITestCase):
         self.assertEqual(response.status_code, 401)
 
     def test_lista_las_academias_existentes(self):
-        Academia.objects.create(nombre='Talentos FC', horario_uso='Martes', permiso_mostrar=True)
-        Academia.objects.create(nombre='Potrillos', horario_uso='Lunes', permiso_mostrar=False)
+        Academia.objects.create(nombre='Talentos FC', permiso_mostrar=True)
+        Academia.objects.create(nombre='Potrillos', permiso_mostrar=False)
 
         self.client.force_authenticate(user=self.usuario)
         response = self.client.get('/api/academias/')
