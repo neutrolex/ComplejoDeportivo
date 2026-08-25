@@ -13,7 +13,7 @@ export default function PanelLayout({ children }) {
   const { cerrarSesion } = useAuth()
 
   return (
-    <div className="flex min-h-screen bg-slate-50 text-slate-900">
+    <div className="flex min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 text-slate-900">
       <aside className="flex w-56 shrink-0 flex-col border-r border-slate-200 bg-white py-6">
         <div className="mb-8 flex items-center gap-2.5 px-5">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500 text-white">
