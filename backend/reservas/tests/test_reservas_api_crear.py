@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from rest_framework.test import APIClient, APITestCase
 
-from reservas.models import Academia, Cancha, Reserva, ReservaCancha
+from reservas.models import Academia, Cancha, Pago, Reserva, ReservaCancha
 from usuarios.models import UsuarioInterno
 
 
@@ -259,3 +259,46 @@ class CrearReservaApiTest(APITestCase):
             'modalidad': 'individual', 'canchas': [cancha.id], 'duracion': '1',
         }, format='json')
         self.assertEqual(segunda.status_code, 400)
+
+    def test_es_adelanto_por_defecto_es_false(self):
+        cancha = Cancha.objects.get(numero=1)
+        response = self.client.post('/api/reservas/', {
+            'fecha': '2026-08-20', 'hora_inicio': '10:00', 'cliente_nombre': 'Juan',
+            'modalidad': 'individual', 'canchas': [cancha.id],
+        }, format='json')
+        self.assertEqual(response.status_code, 201)
+        self.assertFalse(response.data['es_adelanto'])
+
+    def test_crea_reserva_marcada_como_adelanto_con_pago_tipo_adelanto(self):
+        cancha = Cancha.objects.get(numero=1)
+        response = self.client.post('/api/reservas/', {
+            'fecha': '2026-08-29', 'hora_inicio': '10:00', 'cliente_nombre': 'Rosa',
+            'modalidad': 'individual', 'canchas': [cancha.id],
+            'es_adelanto': True, 'efectivo': '30.00',
+        }, format='json')
+
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(response.data['es_adelanto'])
+        reserva = Reserva.objects.get(id=response.data['id'])
+        self.assertTrue(reserva.es_adelanto)
+        pago = reserva.pagos.get(metodo='efectivo')
+        self.assertEqual(pago.tipo, Pago.Tipo.ADELANTO)
+
+    def test_completar_saldo_de_un_adelanto_no_cambia_es_adelanto(self):
+        cancha = Cancha.objects.get(numero=1)
+        creada = self.client.post('/api/reservas/', {
+            'fecha': '2026-08-29', 'hora_inicio': '10:00', 'cliente_nombre': 'Rosa',
+            'modalidad': 'individual', 'canchas': [cancha.id],
+            'es_adelanto': True, 'efectivo': '30.00',
+        }, format='json')
+        reserva_id = creada.data['id']
+
+        completada = self.client.patch(f'/api/reservas/{reserva_id}/pagos/', {
+            'efectivo': '50.00',
+        }, format='json')
+
+        self.assertEqual(completada.status_code, 200)
+        self.assertTrue(completada.data['es_adelanto'])
+        reserva = Reserva.objects.get(id=reserva_id)
+        self.assertTrue(reserva.es_adelanto)
+        self.assertEqual(reserva.pagos.get(metodo='efectivo').tipo, Pago.Tipo.SALDO)

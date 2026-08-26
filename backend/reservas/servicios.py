@@ -121,11 +121,15 @@ def canchas_ocupadas(fecha, hora_inicio, hora_fin, cancha_ids):
     }
 
 
-def guardar_pago(reserva, metodo, monto, usuario):
+def guardar_pago(reserva, metodo, monto, usuario, tipo=Pago.Tipo.SALDO):
     """Upsert de a lo sumo un Pago por (reserva, metodo). monto<=0 borra el
     pago existente (equivale a 'no pago por este metodo'). Si hubiera mas
     de un Pago legacy del mismo metodo (dato de antes de este cambio),
-    actualiza el mas reciente y deja los demas intactos."""
+    actualiza el mas reciente y deja los demas intactos. 'tipo' solo se usa
+    al CREAR el pago (ej. ADELANTO desde el flujo de adelantos); un pago
+    que se actualiza despues de creado siempre queda en SALDO -- ya no es
+    "el adelanto inicial", es el pago que completa (o corrige) lo que
+    falta."""
     pago = reserva.pagos.filter(metodo=metodo).order_by('-fecha_hora').first()
     if monto <= 0:
         if pago:
@@ -138,7 +142,7 @@ def guardar_pago(reserva, metodo, monto, usuario):
         pago.save(update_fields=['monto', 'tipo', 'registrado_por'])
         return pago
     return Pago.objects.create(
-        reserva=reserva, metodo=metodo, monto=monto, tipo=Pago.Tipo.SALDO,
+        reserva=reserva, metodo=metodo, monto=monto, tipo=tipo,
         registrado_por=usuario,
     )
 

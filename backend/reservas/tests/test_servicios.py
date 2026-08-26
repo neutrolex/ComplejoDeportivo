@@ -474,6 +474,21 @@ class GuardarPagoTest(TestCase):
         self.assertIsNone(resultado)
         self.assertEqual(self.reserva.pagos.count(), 0)
 
+    def test_tipo_por_defecto_es_saldo(self):
+        pago = guardar_pago(self.reserva, Pago.Metodo.EFECTIVO, Decimal('50.00'), self.usuario)
+        self.assertEqual(pago.tipo, Pago.Tipo.SALDO)
+
+    def test_se_puede_crear_con_tipo_adelanto(self):
+        pago = guardar_pago(
+            self.reserva, Pago.Metodo.EFECTIVO, Decimal('50.00'), self.usuario, tipo=Pago.Tipo.ADELANTO,
+        )
+        self.assertEqual(pago.tipo, Pago.Tipo.ADELANTO)
+
+    def test_actualizar_un_pago_existente_siempre_deja_tipo_saldo(self):
+        guardar_pago(self.reserva, Pago.Metodo.EFECTIVO, Decimal('30.00'), self.usuario, tipo=Pago.Tipo.ADELANTO)
+        pago = guardar_pago(self.reserva, Pago.Metodo.EFECTIVO, Decimal('50.00'), self.usuario)
+        self.assertEqual(pago.tipo, Pago.Tipo.SALDO)
+
 
 class MaterializarHorariosAcademiaTest(TestCase):
     def setUp(self):

@@ -175,15 +175,17 @@ class ReservaViewSet(viewsets.ViewSet):
                 precio_total=precio_total,
                 academia=datos.get('academia'),
                 asignada_por=request.user,
+                es_adelanto=datos['es_adelanto'],
             )
             ReservaCancha.objects.bulk_create([
                 ReservaCancha(reserva=reserva, cancha_id=cancha_id)
                 for cancha_id in cancha_ids
             ])
+            tipo_pago = Pago.Tipo.ADELANTO if datos['es_adelanto'] else Pago.Tipo.SALDO
             if datos['efectivo'] > 0:
-                guardar_pago(reserva, Pago.Metodo.EFECTIVO, datos['efectivo'], request.user)
+                guardar_pago(reserva, Pago.Metodo.EFECTIVO, datos['efectivo'], request.user, tipo=tipo_pago)
             if datos['yape'] > 0:
-                guardar_pago(reserva, Pago.Metodo.YAPE, datos['yape'], request.user)
+                guardar_pago(reserva, Pago.Metodo.YAPE, datos['yape'], request.user, tipo=tipo_pago)
 
         return Response(ReservaSerializer(reserva).data, status=status.HTTP_201_CREATED)
 
