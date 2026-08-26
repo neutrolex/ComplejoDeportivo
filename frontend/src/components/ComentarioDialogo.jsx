@@ -46,7 +46,7 @@ export default function ComentarioDialogo({ abierto, fecha, onCerrar, onCreado }
         </DialogHeader>
 
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-slate-700" htmlFor="comentario-texto">Comentario</label>
+          <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="comentario-texto">Comentario</label>
           <Textarea
             id="comentario-texto"
             value={texto}
@@ -57,7 +57,7 @@ export default function ComentarioDialogo({ abierto, fecha, onCerrar, onCreado }
 
         <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-violet-700" htmlFor="comentario-yape">
+            <label className="text-sm font-medium text-violet-700 dark:text-violet-400" htmlFor="comentario-yape">
               📱 Monto Yape (S/)
             </label>
             <Input
@@ -66,7 +66,7 @@ export default function ComentarioDialogo({ abierto, fecha, onCerrar, onCreado }
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-emerald-700" htmlFor="comentario-efectivo">
+            <label className="text-sm font-medium text-emerald-700 dark:text-emerald-400" htmlFor="comentario-efectivo">
               💵 Monto Efectivo (S/)
             </label>
             <Input
@@ -75,9 +75,9 @@ export default function ComentarioDialogo({ abierto, fecha, onCerrar, onCreado }
             />
           </div>
         </div>
-        <p className="text-xs text-slate-400">El monto es opcional y suma al total del día y al dashboard.</p>
+        <p className="text-xs text-slate-400 dark:text-slate-500">El monto es opcional y suma al total del día y al dashboard.</p>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 
         <div className="flex justify-end">
           <Button onClick={guardar} disabled={guardando}>Guardar</Button>

@@ -50,7 +50,7 @@ export default function CalendarioPopover({ fecha, onSeleccionar }) {
   return (
     <Popover open={abierto} onOpenChange={setAbierto}>
       <PopoverTrigger asChild>
-        <Button variant="outline" className="gap-2 text-slate-700">
+        <Button variant="outline" className="gap-2">
           <CalendarIcon className="h-4 w-4" />
           {fecha.split('-').reverse().join('/')}
         </Button>
@@ -60,23 +60,23 @@ export default function CalendarioPopover({ fecha, onSeleccionar }) {
           <button
             type="button"
             onClick={() => setMesVisible((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))}
-            className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100"
+            className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
-          <span className="text-sm font-semibold text-slate-900">
+          <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">
             {NOMBRES_MES[mesVisible.getMonth()]} {mesVisible.getFullYear()}
           </span>
           <button
             type="button"
             onClick={() => setMesVisible((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))}
-            className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100"
+            className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-slate-400">
+        <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-slate-400 dark:text-slate-500">
           {NOMBRES_DIA_CORTO.map((n, i) => <div key={i} className="py-1">{n}</div>)}
         </div>
         <div className="grid grid-cols-7 gap-1">
@@ -94,8 +94,8 @@ export default function CalendarioPopover({ fecha, onSeleccionar }) {
                   esSeleccionado
                     ? 'bg-emerald-600 font-semibold text-white'
                     : esHoy
-                      ? 'font-semibold text-emerald-700 ring-2 ring-inset ring-emerald-500 hover:bg-emerald-50'
-                      : 'text-slate-700 hover:bg-slate-100'
+                      ? 'font-semibold text-emerald-700 ring-2 ring-inset ring-emerald-500 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10'
+                      : 'text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
                 }`}
               >
                 {dia.getDate()}
@@ -107,7 +107,7 @@ export default function CalendarioPopover({ fecha, onSeleccionar }) {
         <button
           type="button"
           onClick={() => elegir(new Date())}
-          className="mt-2 w-full rounded-md border border-slate-200 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
+          className="mt-2 w-full rounded-md border border-slate-200 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
         >
           Ir a hoy
         </button>

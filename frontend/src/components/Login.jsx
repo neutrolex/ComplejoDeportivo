@@ -1,68 +1,59 @@
 import { useState } from 'react'
+import { Trophy } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { Button } from './ui/button'
+import { Input } from './ui/input'
 
 export default function Login() {
   const [usuario, setUsuario] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [enviando, setEnviando] = useState(false)
   const { iniciarSesion } = useAuth()
 
   async function manejarSubmit(evento) {
     evento.preventDefault()
     setError('')
+    setEnviando(true)
     try {
       await iniciarSesion(usuario, password)
     } catch (err) {
       setError(err.message)
+    } finally {
+      setEnviando(false)
     }
   }
 
-  const estiloInput = {
-    border: '1px solid #D8DADF', borderRadius: 8, padding: '8px 10px', fontSize: 13,
-    background: 'white', color: '#1F2430', colorScheme: 'light',
-  }
-
   return (
-    <div style={{
-      minHeight: '100vh', width: '100vw', position: 'relative', left: '50%', marginLeft: '-50vw',
-      background: '#FAFAFB', color: '#1F2430', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif',
-    }}>
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
       <form
         onSubmit={manejarSubmit}
-        style={{
-          background: 'white', border: '1px solid #E4E6EA', borderRadius: 14, padding: 28,
-          width: 280, display: 'flex', flexDirection: 'column', gap: 12,
-        }}
+        className="flex w-72 flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-7 shadow-sm dark:border-slate-800 dark:bg-slate-900"
       >
-        <h1 style={{ color: '#1F2430', fontSize: 22, margin: '0 0 8px' }}>Ingresar</h1>
-        <div>
-          <label htmlFor="usuario" style={{ display: 'block', fontSize: 13, marginBottom: 4 }}>Usuario</label>
-          <input
-            id="usuario" value={usuario} onChange={(e) => setUsuario(e.target.value)}
-            style={{ ...estiloInput, width: '100%', boxSizing: 'border-box' }}
-          />
+        <div className="mb-1 flex items-center gap-2.5">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500 text-white">
+            <Trophy className="h-5 w-5" />
+          </div>
+          <div>
+            <div className="text-sm font-bold leading-tight text-slate-900 dark:text-slate-100">Campos</div>
+            <div className="text-xs text-slate-400 dark:text-slate-500">Panel de administración</div>
+          </div>
         </div>
-        <div>
-          <label htmlFor="password" style={{ display: 'block', fontSize: 13, marginBottom: 4 }}>Contraseña</label>
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            style={{ ...estiloInput, width: '100%', boxSizing: 'border-box' }}
-          />
+
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="usuario">Usuario</label>
+          <Input id="usuario" value={usuario} onChange={(e) => setUsuario(e.target.value)} autoFocus />
         </div>
-        {error && <p style={{ color: 'red', fontSize: 13, margin: 0 }}>{error}</p>}
-        <button
-          type="submit"
-          style={{
-            padding: '9px 0', borderRadius: 8, border: 'none', background: '#1F2430',
-            color: 'white', fontSize: 14, cursor: 'pointer',
-          }}
-        >
-          Entrar
-        </button>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="password">Contraseña</label>
+          <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+        </div>
+
+        {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+
+        <Button type="submit" disabled={enviando} className="mt-1">
+          {enviando ? 'Ingresando...' : 'Entrar'}
+        </Button>
       </form>
     </div>
   )

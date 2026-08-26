@@ -6,7 +6,10 @@ from django.utils import timezone
 
 from reservas.models import Academia, AcademiaHorario, Cancha, ComentarioDia, Modalidad, Pago, Reserva, ReservaCancha
 from reservas.servicios import (
+    cancelar_reservas_futuras_de_academia,
+    cancelar_reservas_futuras_de_horario,
     canchas_ocupadas,
+    conflicto_de_horario,
     guardar_pago,
     horarios_se_solapan,
     horas_operativas,
@@ -14,6 +17,8 @@ from reservas.servicios import (
     nombre_academia_visible,
     obtener_tarifa,
     resumen_financiero_dashboard,
+    segmentos_de_una_hora,
+    sincronizar_horarios_academia,
 )
 from usuarios.models import UsuarioInterno
 
@@ -30,6 +35,38 @@ class ObtenerTarifaTest(TestCase):
     def test_devuelve_none_fuera_de_horario(self):
         tarifa = obtener_tarifa(Modalidad.INDIVIDUAL, time(3, 0))
         self.assertIsNone(tarifa)
+
+
+class SegmentosDeUnaHoraTest(TestCase):
+    def test_una_hora_exacta_da_un_solo_segmento(self):
+        self.assertEqual(
+            segmentos_de_una_hora(time(18, 0), time(19, 0)),
+            [(time(18, 0), time(19, 0))],
+        )
+
+    def test_dos_horas_da_dos_segmentos_de_una_hora(self):
+        self.assertEqual(
+            segmentos_de_una_hora(time(18, 0), time(20, 0)),
+            [(time(18, 0), time(19, 0)), (time(19, 0), time(20, 0))],
+        )
+
+    def test_el_tramo_final_se_queda_con_el_resto(self):
+        self.assertEqual(
+            segmentos_de_una_hora(time(18, 0), time(19, 30)),
+            [(time(18, 0), time(19, 0)), (time(19, 0), time(19, 30))],
+        )
+
+    def test_menos_de_una_hora_da_un_solo_segmento_corto(self):
+        self.assertEqual(
+            segmentos_de_una_hora(time(18, 0), time(18, 30)),
+            [(time(18, 0), time(18, 30))],
+        )
+
+    def test_hasta_medianoche_se_trata_como_fin_del_dia_operativo(self):
+        self.assertEqual(
+            segmentos_de_una_hora(time(22, 0), time(0, 0)),
+            [(time(22, 0), time(23, 0)), (time(23, 0), time(0, 0))],
+        )
 
 
 class HorariosSeSolapanTest(TestCase):
@@ -56,6 +93,55 @@ class HorariosSeSolapanTest(TestCase):
         # noche que empiece antes de medianoche, como 23:30-00:00.
         self.assertTrue(horarios_se_solapan(time(22, 0), time(0, 0), time(23, 30), time(0, 0)))
         self.assertFalse(horarios_se_solapan(time(8, 0), time(9, 0), time(22, 0), time(0, 0)))
+
+
+class ConflictoDeHorarioTest(TestCase):
+    def setUp(self):
+        self.academia_existente = Academia.objects.create(nombre='Arco Sport')
+        self.cancha_1 = Cancha.objects.get(numero=1)
+        self.cancha_2 = Cancha.objects.get(numero=2)
+        self.horario = AcademiaHorario.objects.create(
+            academia=self.academia_existente, dia_semana=AcademiaHorario.Dia.LUNES,
+            hora_inicio=time(20, 0), hora_fin=time(21, 0),
+        )
+        self.horario.canchas.set([self.cancha_1])
+
+    def test_detecta_el_mismo_horario_en_la_misma_cancha(self):
+        conflicto = conflicto_de_horario(
+            AcademiaHorario.Dia.LUNES, time(20, 0), time(21, 0), [self.cancha_1.id],
+        )
+        self.assertEqual(conflicto, self.academia_existente)
+
+    def test_detecta_solapamiento_parcial(self):
+        conflicto = conflicto_de_horario(
+            AcademiaHorario.Dia.LUNES, time(20, 30), time(21, 30), [self.cancha_1.id],
+        )
+        self.assertEqual(conflicto, self.academia_existente)
+
+    def test_ninguna_cancha_en_comun_no_es_conflicto(self):
+        conflicto = conflicto_de_horario(
+            AcademiaHorario.Dia.LUNES, time(20, 0), time(21, 0), [self.cancha_2.id],
+        )
+        self.assertIsNone(conflicto)
+
+    def test_otro_dia_no_es_conflicto(self):
+        conflicto = conflicto_de_horario(
+            AcademiaHorario.Dia.MARTES, time(20, 0), time(21, 0), [self.cancha_1.id],
+        )
+        self.assertIsNone(conflicto)
+
+    def test_horario_que_no_se_solapa_no_es_conflicto(self):
+        conflicto = conflicto_de_horario(
+            AcademiaHorario.Dia.LUNES, time(21, 0), time(22, 0), [self.cancha_1.id],
+        )
+        self.assertIsNone(conflicto)
+
+    def test_excluir_academia_id_ignora_sus_propios_horarios(self):
+        conflicto = conflicto_de_horario(
+            AcademiaHorario.Dia.LUNES, time(20, 0), time(21, 0), [self.cancha_1.id],
+            excluir_academia_id=self.academia_existente.id,
+        )
+        self.assertIsNone(conflicto)
 
 
 class CanchasOcupadasTest(TestCase):
@@ -444,7 +530,9 @@ class MaterializarHorariosAcademiaTest(TestCase):
         self.assertEqual(reservas.first().canchas_asignadas.count(), 4)
 
     def test_precio_total_segun_tarifa_y_duracion(self):
-        # Tarifa individual 18:00-00:00 es 70.00/hora (ver seed). 1.5h = 105.00
+        # Tarifa individual 18:00-00:00 es 70.00/hora (ver seed). Un horario
+        # de 1.5h se parte en dos reservas (18:00-19:00 y 19:00-19:30), cada
+        # una con su propio precio segun su propia duracion: 70.00 + 35.00.
         self._crear_horario(
             AcademiaHorario.Dia.LUNES, [self.cancha_1],
             hora_inicio=time(18, 0), hora_fin=time(19, 30),
@@ -452,8 +540,13 @@ class MaterializarHorariosAcademiaTest(TestCase):
 
         materializar_horarios_academia(self.lunes, self.usuario)
 
-        reserva = Reserva.objects.get(academia=self.academia, fecha=self.lunes)
-        self.assertEqual(reserva.precio_total, Decimal('105.00'))
+        reservas = Reserva.objects.filter(academia=self.academia, fecha=self.lunes).order_by('hora_inicio')
+        self.assertEqual(reservas.count(), 2)
+        primera, segunda = reservas
+        self.assertEqual((primera.hora_inicio, primera.hora_fin), (time(18, 0), time(19, 0)))
+        self.assertEqual(primera.precio_total, Decimal('70.00'))
+        self.assertEqual((segunda.hora_inicio, segunda.hora_fin), (time(19, 0), time(19, 30)))
+        self.assertEqual(segunda.precio_total, Decimal('35.00'))
 
     def test_no_duplica_si_se_llama_dos_veces(self):
         self._crear_horario(AcademiaHorario.Dia.LUNES, [self.cancha_1])
@@ -551,3 +644,164 @@ class MaterializarHorariosAcademiaTest(TestCase):
         materializar_horarios_academia(self.lunes, self.usuario)
 
         self.assertEqual(Reserva.objects.filter(academia=self.academia).count(), 0)
+
+    def test_horario_de_dos_horas_crea_una_reserva_por_hora(self):
+        self._crear_horario(
+            AcademiaHorario.Dia.LUNES, [self.cancha_1],
+            hora_inicio=time(18, 0), hora_fin=time(20, 0),
+        )
+
+        materializar_horarios_academia(self.lunes, self.usuario)
+
+        reservas = Reserva.objects.filter(academia=self.academia, fecha=self.lunes).order_by('hora_inicio')
+        self.assertEqual(reservas.count(), 2)
+        self.assertEqual([(r.hora_inicio, r.hora_fin) for r in reservas], [
+            (time(18, 0), time(19, 0)), (time(19, 0), time(20, 0)),
+        ])
+
+    def test_cancelar_una_hora_no_revive_ni_afecta_la_otra_hora_del_mismo_horario(self):
+        self._crear_horario(
+            AcademiaHorario.Dia.LUNES, [self.cancha_1],
+            hora_inicio=time(18, 0), hora_fin=time(20, 0),
+        )
+        materializar_horarios_academia(self.lunes, self.usuario)
+        primera = Reserva.objects.get(academia=self.academia, fecha=self.lunes, hora_inicio=time(18, 0))
+        segunda = Reserva.objects.get(academia=self.academia, fecha=self.lunes, hora_inicio=time(19, 0))
+        primera.estado = Reserva.Estado.CANCELADA
+        primera.save(update_fields=['estado'])
+
+        materializar_horarios_academia(self.lunes, self.usuario)
+
+        primera.refresh_from_db()
+        segunda.refresh_from_db()
+        self.assertEqual(primera.estado, Reserva.Estado.CANCELADA)
+        self.assertEqual(segunda.estado, Reserva.Estado.CONFIRMADA)
+        self.assertEqual(Reserva.objects.filter(academia=self.academia, fecha=self.lunes).count(), 2)
+
+
+class CancelarReservasFuturasDeHorarioTest(TestCase):
+    def setUp(self):
+        self.usuario = UsuarioInterno.objects.create_user(
+            usuario='ana', password='clave123', nombre='Ana',
+        )
+        self.academia = Academia.objects.create(nombre='Talentos FC')
+        self.cancha_1 = Cancha.objects.get(numero=1)
+        self.cancha_2 = Cancha.objects.get(numero=2)
+        hoy = timezone.localdate()
+        self.lunes = hoy + timedelta(days=(0 - hoy.weekday()) % 7)
+        self.horario_lunes = AcademiaHorario.objects.create(
+            academia=self.academia, dia_semana=AcademiaHorario.Dia.LUNES,
+            hora_inicio=time(18, 0), hora_fin=time(19, 0),
+        )
+        self.horario_lunes.canchas.set([self.cancha_1])
+
+    def test_cancela_la_reserva_futura_generada_por_el_horario(self):
+        materializar_horarios_academia(self.lunes, self.usuario)
+        reserva = Reserva.objects.get(academia_horario=self.horario_lunes)
+
+        cancelar_reservas_futuras_de_horario(self.horario_lunes)
+
+        reserva.refresh_from_db()
+        self.assertEqual(reserva.estado, Reserva.Estado.CANCELADA)
+
+    def test_no_toca_una_reserva_pasada_del_mismo_horario(self):
+        pasada = Reserva.objects.create(
+            modalidad=Modalidad.INDIVIDUAL, cliente_nombre='Talentos FC',
+            fecha=date(2020, 1, 6), hora_inicio=time(18, 0), hora_fin=time(19, 0),
+            precio_total='70.00', academia=self.academia,
+            academia_horario=self.horario_lunes, asignada_por=self.usuario,
+        )
+
+        cancelar_reservas_futuras_de_horario(self.horario_lunes)
+
+        pasada.refresh_from_db()
+        self.assertEqual(pasada.estado, Reserva.Estado.CONFIRMADA)
+
+    def test_no_toca_reservas_de_otro_horario_de_la_misma_academia(self):
+        horario_martes = AcademiaHorario.objects.create(
+            academia=self.academia, dia_semana=AcademiaHorario.Dia.MARTES,
+            hora_inicio=time(18, 0), hora_fin=time(19, 0),
+        )
+        horario_martes.canchas.set([self.cancha_2])
+        materializar_horarios_academia(self.lunes, self.usuario)
+        materializar_horarios_academia(self.lunes + timedelta(days=1), self.usuario)
+        reserva_martes = Reserva.objects.get(academia_horario=horario_martes)
+
+        cancelar_reservas_futuras_de_horario(self.horario_lunes)
+
+        reserva_martes.refresh_from_db()
+        self.assertEqual(reserva_martes.estado, Reserva.Estado.CONFIRMADA)
+
+    def test_no_toca_reservas_manuales_vinculadas_a_la_academia(self):
+        manual = Reserva.objects.create(
+            modalidad=Modalidad.INDIVIDUAL, cliente_nombre='Cliente suelto',
+            fecha=self.lunes, hora_inicio=time(10, 0), hora_fin=time(11, 0),
+            precio_total='50.00', academia=self.academia, asignada_por=self.usuario,
+        )
+
+        cancelar_reservas_futuras_de_horario(self.horario_lunes)
+
+        manual.refresh_from_db()
+        self.assertEqual(manual.estado, Reserva.Estado.CONFIRMADA)
+
+
+class SincronizarHorariosAcademiaTest(TestCase):
+    def setUp(self):
+        self.usuario = UsuarioInterno.objects.create_user(
+            usuario='ana', password='clave123', nombre='Ana',
+        )
+        self.academia = Academia.objects.create(nombre='Talentos FC')
+        self.cancha_1 = Cancha.objects.get(numero=1)
+        self.cancha_2 = Cancha.objects.get(numero=2)
+        hoy = timezone.localdate()
+        self.lunes = hoy + timedelta(days=(0 - hoy.weekday()) % 7)
+
+    def _entrada(self, dias, hora_inicio, hora_fin, canchas):
+        return {'dias': dias, 'hora_inicio': hora_inicio, 'hora_fin': hora_fin, 'canchas': canchas}
+
+    def test_crea_horarios_nuevos_cuando_no_habia_ninguno(self):
+        sincronizar_horarios_academia(self.academia, [
+            self._entrada([0], time(18, 0), time(19, 0), [self.cancha_1]),
+        ])
+
+        self.assertEqual(self.academia.horarios.count(), 1)
+        fila = self.academia.horarios.first()
+        self.assertEqual(fila.dia_semana, 0)
+        self.assertEqual(list(fila.canchas.values_list('id', flat=True)), [self.cancha_1.id])
+
+    def test_mantiene_intacto_un_horario_que_no_cambio(self):
+        sincronizar_horarios_academia(self.academia, [
+            self._entrada([0], time(18, 0), time(19, 0), [self.cancha_1]),
+        ])
+        original = self.academia.horarios.first()
+
+        sincronizar_horarios_academia(self.academia, [
+            self._entrada([0], time(18, 0), time(19, 0), [self.cancha_1]),
+        ])
+
+        self.assertEqual(self.academia.horarios.count(), 1)
+        self.assertEqual(self.academia.horarios.first().id, original.id)
+
+    def test_borra_el_horario_quitado_y_cancela_solo_sus_reservas_futuras(self):
+        sincronizar_horarios_academia(self.academia, [
+            self._entrada([0], time(18, 0), time(19, 0), [self.cancha_1]),
+            self._entrada([1], time(18, 0), time(19, 0), [self.cancha_2]),
+        ])
+        horario_lunes = self.academia.horarios.get(dia_semana=0)
+        horario_martes = self.academia.horarios.get(dia_semana=1)
+        materializar_horarios_academia(self.lunes, self.usuario)
+        materializar_horarios_academia(self.lunes + timedelta(days=1), self.usuario)
+        reserva_lunes = Reserva.objects.get(academia_horario=horario_lunes)
+        reserva_martes = Reserva.objects.get(academia_horario=horario_martes)
+
+        # Se quita el horario del lunes; el del martes queda igual.
+        sincronizar_horarios_academia(self.academia, [
+            self._entrada([1], time(18, 0), time(19, 0), [self.cancha_2]),
+        ])
+
+        self.assertEqual(self.academia.horarios.count(), 1)
+        self.assertEqual(self.academia.horarios.first().id, horario_martes.id)
+        reserva_lunes.refresh_from_db()
+        reserva_martes.refresh_from_db()
+        self.assertEqual(reserva_lunes.estado, Reserva.Estado.CANCELADA)
+        self.assertEqual(reserva_martes.estado, Reserva.Estado.CONFIRMADA)

@@ -12,7 +12,8 @@ const PopoverContent = React.forwardRef(({ className, align = 'start', sideOffse
       align={align}
       sideOffset={sideOffset}
       className={cn(
-        'z-50 rounded-lg border border-slate-200 bg-white p-3 shadow-lg outline-none',
+        'z-50 rounded-lg border border-slate-200 bg-white p-3 text-slate-900 shadow-lg outline-none',
+        'dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100',
         className,
       )}
       style={{ animation: 'popover-in 120ms ease-out' }}

@@ -11,7 +11,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Academia, AcademiaHorario, Cancha, ComentarioDia, Modalidad, Pago, Reserva, ReservaCancha, Tarifa
+from .models import Academia, Cancha, ComentarioDia, Modalidad, Pago, Reserva, ReservaCancha, Tarifa
 from .serializers import (
     AcademiaEntradaSerializer,
     AcademiaSerializer,
@@ -22,6 +22,7 @@ from .serializers import (
     TarifaSerializer,
 )
 from .servicios import (
+    cancelar_reservas_futuras_de_academia,
     canchas_ocupadas,
     fecha_valida,
     guardar_pago,
@@ -31,6 +32,7 @@ from .servicios import (
     nombre_academia_visible,
     obtener_tarifa,
     resumen_financiero_dashboard,
+    sincronizar_horarios_academia,
 )
 
 
@@ -42,7 +44,7 @@ class AcademiaViewSet(viewsets.ViewSet):
         return Response(AcademiaSerializer(academias, many=True).data)
 
     def create(self, request):
-        entrada = AcademiaEntradaSerializer(data=request.data)
+        entrada = AcademiaEntradaSerializer(data=request.data, context={'academia_id': None})
         entrada.is_valid(raise_exception=True)
         academia = self._guardar(entrada.validated_data)
         return Response(AcademiaSerializer(academia).data, status=status.HTTP_201_CREATED)
@@ -52,7 +54,7 @@ class AcademiaViewSet(viewsets.ViewSet):
             academia = Academia.objects.get(pk=pk)
         except Academia.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
-        entrada = AcademiaEntradaSerializer(data=request.data)
+        entrada = AcademiaEntradaSerializer(data=request.data, context={'academia_id': academia.id})
         entrada.is_valid(raise_exception=True)
         academia = self._guardar(entrada.validated_data, academia=academia)
         return Response(AcademiaSerializer(academia).data)
@@ -62,7 +64,9 @@ class AcademiaViewSet(viewsets.ViewSet):
             academia = Academia.objects.get(pk=pk)
         except Academia.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
-        academia.delete()
+        with transaction.atomic():
+            cancelar_reservas_futuras_de_academia(academia)
+            academia.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def _guardar(self, datos, academia=None):
@@ -76,14 +80,7 @@ class AcademiaViewSet(viewsets.ViewSet):
                 academia.color = datos['color']
                 academia.permiso_mostrar = datos['permiso_mostrar']
                 academia.save(update_fields=['nombre', 'color', 'permiso_mostrar'])
-                academia.horarios.all().delete()
-            for horario in datos['horarios']:
-                for dia in horario['dias']:
-                    fila = AcademiaHorario.objects.create(
-                        academia=academia, dia_semana=dia,
-                        hora_inicio=horario['hora_inicio'], hora_fin=horario['hora_fin'],
-                    )
-                    fila.canchas.set(horario['canchas'])
+            sincronizar_horarios_academia(academia, datos['horarios'])
         return academia
 
 
@@ -197,6 +194,25 @@ class ReservaViewSet(viewsets.ViewSet):
         except Reserva.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
         reserva.estado = Reserva.Estado.CANCELADA
+        reserva.save(update_fields=['estado'])
+        return Response(ReservaSerializer(reserva).data)
+
+    @action(detail=True, methods=['post'])
+    def ausente(self, request, pk=None):
+        # Toggle, no un solo sentido: marca "no vino" si no lo estaba, y
+        # revierte a confirmada si ya lo estaba -- el dialogo de editar
+        # llama este mismo endpoint para las dos direcciones. A diferencia
+        # de cancelar/, esto no toca los pagos ya cargados: el estado de
+        # "no vino" y la plata que haya entrado son cosas independientes
+        # (puede haber pagado una sena y aun asi no haber venido).
+        try:
+            reserva = Reserva.objects.get(pk=pk)
+        except Reserva.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        reserva.estado = (
+            Reserva.Estado.CONFIRMADA if reserva.estado == Reserva.Estado.AUSENTE
+            else Reserva.Estado.AUSENTE
+        )
         reserva.save(update_fields=['estado'])
         return Response(ReservaSerializer(reserva).data)
 

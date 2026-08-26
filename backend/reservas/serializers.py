@@ -3,7 +3,7 @@ from decimal import Decimal
 from rest_framework import serializers
 
 from .models import Academia, AcademiaHorario, Cancha, ComentarioDia, Modalidad, Pago, Reserva, Tarifa
-from .servicios import obtener_tarifa
+from .servicios import conflicto_de_horario, obtener_tarifa
 
 
 class AcademiaResumenSerializer(serializers.ModelSerializer):
@@ -73,6 +73,28 @@ class AcademiaEntradaSerializer(serializers.Serializer):
     color = serializers.CharField(max_length=7, required=False, default='#7c3aed')
     permiso_mostrar = serializers.BooleanField(required=False, default=True)
     horarios = HorarioEntradaSerializer(many=True, required=False, default=list)
+
+    def validate(self, datos):
+        # La vista pasa el id de la academia que se esta editando por
+        # context (None si es una academia nueva) para que sus propios
+        # horarios no cuenten como conflicto consigo misma.
+        academia_id = self.context.get('academia_id')
+        for horario in datos['horarios']:
+            cancha_ids = [c.id for c in horario['canchas']]
+            for dia in horario['dias']:
+                conflicto = conflicto_de_horario(
+                    dia, horario['hora_inicio'], horario['hora_fin'], cancha_ids,
+                    excluir_academia_id=academia_id,
+                )
+                if conflicto:
+                    dia_nombre = AcademiaHorario.Dia(dia).label
+                    inicio = horario['hora_inicio'].strftime('%H:%M')
+                    fin = horario['hora_fin'].strftime('%H:%M')
+                    raise serializers.ValidationError(
+                        f'{dia_nombre} {inicio}–{fin} ya esta ocupado en esa cancha '
+                        f'por la academia "{conflicto.nombre}".'
+                    )
+        return datos
 
 
 class CanchaSerializer(serializers.ModelSerializer):
