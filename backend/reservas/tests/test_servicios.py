@@ -866,3 +866,14 @@ class ListarAdelantosPendientesTest(TestCase):
         temprano = self._crear_reserva('2026-09-01')
         resultado = listar_adelantos_pendientes()
         self.assertEqual([r.id for r in resultado], [temprano.id, tarde.id])
+
+    def test_incluye_adelanto_con_fecha_pasada(self):
+        # A proposito NO se filtra por fecha (ver docstring de
+        # listar_adelantos_pendientes y spec seccion 2.4): un adelanto viejo
+        # que nunca se termino de cobrar no debe desaparecer solo porque su
+        # fecha ya paso. '2020-01-01' es muy anterior a cualquier "hoy"
+        # plausible.
+        pasada = self._crear_reserva('2020-01-01')
+        futura = self._crear_reserva('2026-09-01')
+        resultado = listar_adelantos_pendientes()
+        self.assertEqual([r.id for r in resultado], [pasada.id, futura.id])

@@ -89,7 +89,7 @@ export default function ComentariosDia({ fecha, canchas, onAdelantoCreado }) {
         })}
       </div>
 
-      <AdelantosPendientes recargar={recargarAdelantos} />
+      <AdelantosPendientes recargar={recargarAdelantos} canchas={canchas} />
 
       <ComentarioDialogo
         abierto={dialogoAbierto}

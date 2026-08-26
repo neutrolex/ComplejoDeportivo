@@ -454,7 +454,8 @@ def listar_adelantos_pendientes():
     candidatas = (
         Reserva.objects.filter(es_adelanto=True)
         .exclude(estado=Reserva.Estado.CANCELADA)
-        .prefetch_related('pagos')
+        .select_related('academia')
+        .prefetch_related('canchas_asignadas', 'pagos')
         .order_by('fecha', 'hora_inicio')
     )
     resultado = []

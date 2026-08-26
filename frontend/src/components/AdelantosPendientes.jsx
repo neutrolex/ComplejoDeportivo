@@ -7,7 +7,13 @@ function montoPagado(reserva) {
   return reserva.pagos.reduce((acc, p) => acc + Number(p.monto), 0)
 }
 
-export default function AdelantosPendientes({ recargar }) {
+function etiquetaCancha(reserva, canchas) {
+  if (reserva.modalidad === 'completo') return 'Campo completo'
+  const cancha = canchas.find((c) => c.id === reserva.canchas[0])
+  return cancha ? `Cancha ${cancha.numero}` : ''
+}
+
+export default function AdelantosPendientes({ recargar, canchas }) {
   const [adelantos, setAdelantos] = useState([])
   const [cargando, setCargando] = useState(true)
 
@@ -39,7 +45,7 @@ export default function AdelantosPendientes({ recargar }) {
             >
               <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{r.cliente_nombre}</p>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                {formatearFechaLarga(r.fecha)} · {r.hora_inicio.slice(0, 5)}
+                {formatearFechaLarga(r.fecha)} · {r.hora_inicio.slice(0, 5)} · {etiquetaCancha(r, canchas)}
               </p>
               <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
                 Adelantó S/{pagado.toFixed(2)} de S/{Number(r.precio_total).toFixed(2)} — falta S/{falta.toFixed(2)}
