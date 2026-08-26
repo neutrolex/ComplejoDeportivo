@@ -28,6 +28,7 @@ from .servicios import (
     guardar_pago,
     horarios_se_solapan,
     horas_operativas,
+    listar_adelantos_pendientes,
     materializar_horarios_academia,
     nombre_academia_visible,
     obtener_tarifa,
@@ -175,15 +176,17 @@ class ReservaViewSet(viewsets.ViewSet):
                 precio_total=precio_total,
                 academia=datos.get('academia'),
                 asignada_por=request.user,
+                es_adelanto=datos['es_adelanto'],
             )
             ReservaCancha.objects.bulk_create([
                 ReservaCancha(reserva=reserva, cancha_id=cancha_id)
                 for cancha_id in cancha_ids
             ])
+            tipo_pago = Pago.Tipo.ADELANTO if datos['es_adelanto'] else Pago.Tipo.SALDO
             if datos['efectivo'] > 0:
-                guardar_pago(reserva, Pago.Metodo.EFECTIVO, datos['efectivo'], request.user)
+                guardar_pago(reserva, Pago.Metodo.EFECTIVO, datos['efectivo'], request.user, tipo=tipo_pago)
             if datos['yape'] > 0:
-                guardar_pago(reserva, Pago.Metodo.YAPE, datos['yape'], request.user)
+                guardar_pago(reserva, Pago.Metodo.YAPE, datos['yape'], request.user, tipo=tipo_pago)
 
         return Response(ReservaSerializer(reserva).data, status=status.HTTP_201_CREATED)
 
@@ -215,6 +218,11 @@ class ReservaViewSet(viewsets.ViewSet):
         )
         reserva.save(update_fields=['estado'])
         return Response(ReservaSerializer(reserva).data)
+
+    @action(detail=False, methods=['get'], url_path='adelantos-pendientes')
+    def adelantos_pendientes(self, request):
+        reservas = listar_adelantos_pendientes()
+        return Response(ReservaSerializer(reservas, many=True).data)
 
     @action(detail=True, methods=['patch'])
     def pagos(self, request, pk=None):

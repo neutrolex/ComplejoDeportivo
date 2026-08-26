@@ -128,6 +128,7 @@ class ReservaSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'modalidad', 'cliente_nombre', 'fecha', 'hora_inicio',
             'hora_fin', 'estado', 'precio_total', 'canchas', 'pagos', 'academia',
+            'es_adelanto',
         ]
 
     def get_canchas(self, reserva):
@@ -145,6 +146,9 @@ class NuevaReservaSerializer(serializers.Serializer):
     academia = serializers.PrimaryKeyRelatedField(
         queryset=Academia.objects.all(), required=False, allow_null=True, default=None,
     )
+    # True solo cuando la reserva nace del flujo "Agregar adelanto" del
+    # panel de Observaciones del dia -- ver ReservaViewSet.create().
+    es_adelanto = serializers.BooleanField(required=False, default=False)
     yape = serializers.DecimalField(
         max_digits=7, decimal_places=2, required=False, default=Decimal('0.00'), min_value=Decimal('0.00'),
     )

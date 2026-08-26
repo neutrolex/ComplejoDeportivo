@@ -121,11 +121,15 @@ def canchas_ocupadas(fecha, hora_inicio, hora_fin, cancha_ids):
     }
 
 
-def guardar_pago(reserva, metodo, monto, usuario):
+def guardar_pago(reserva, metodo, monto, usuario, tipo=Pago.Tipo.SALDO):
     """Upsert de a lo sumo un Pago por (reserva, metodo). monto<=0 borra el
     pago existente (equivale a 'no pago por este metodo'). Si hubiera mas
     de un Pago legacy del mismo metodo (dato de antes de este cambio),
-    actualiza el mas reciente y deja los demas intactos."""
+    actualiza el mas reciente y deja los demas intactos. 'tipo' solo se usa
+    al CREAR el pago (ej. ADELANTO desde el flujo de adelantos); un pago
+    que se actualiza despues de creado siempre queda en SALDO -- ya no es
+    "el adelanto inicial", es el pago que completa (o corrige) lo que
+    falta."""
     pago = reserva.pagos.filter(metodo=metodo).order_by('-fecha_hora').first()
     if monto <= 0:
         if pago:
@@ -138,7 +142,7 @@ def guardar_pago(reserva, metodo, monto, usuario):
         pago.save(update_fields=['monto', 'tipo', 'registrado_por'])
         return pago
     return Pago.objects.create(
-        reserva=reserva, metodo=metodo, monto=monto, tipo=Pago.Tipo.SALDO,
+        reserva=reserva, metodo=metodo, monto=monto, tipo=tipo,
         registrado_por=usuario,
     )
 
@@ -439,3 +443,24 @@ def sincronizar_horarios_academia(academia, horarios_entrada):
             academia=academia, dia_semana=dia, hora_inicio=hora_inicio, hora_fin=hora_fin,
         )
         fila.canchas.set(canchas)
+
+
+def listar_adelantos_pendientes():
+    """Reservas marcadas como adelanto que todavia tienen saldo por cobrar
+    (precio_total > suma de sus pagos), sin cancelar, ordenadas por fecha y
+    hora ascendente. No se filtra por fecha a proposito -- ver spec de
+    adelantos seccion 2.4 -- para no perder de vista un adelanto viejo que
+    quedo sin completar."""
+    candidatas = (
+        Reserva.objects.filter(es_adelanto=True)
+        .exclude(estado=Reserva.Estado.CANCELADA)
+        .select_related('academia')
+        .prefetch_related('canchas_asignadas', 'pagos')
+        .order_by('fecha', 'hora_inicio')
+    )
+    resultado = []
+    for reserva in candidatas:
+        pagado = sum((p.monto for p in reserva.pagos.all()), Decimal('0.00'))
+        if pagado < reserva.precio_total:
+            resultado.append(reserva)
+    return resultado

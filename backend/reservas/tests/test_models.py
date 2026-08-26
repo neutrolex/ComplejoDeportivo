@@ -70,6 +70,38 @@ class ReservaAcademiaTest(TestCase):
         self.assertIsNone(reserva.academia)
 
 
+class ReservaEsAdelantoTest(TestCase):
+    def setUp(self):
+        self.usuario = UsuarioInterno.objects.create_user(
+            usuario='ana', password='clave123', nombre='Ana',
+        )
+
+    def test_es_adelanto_por_defecto_es_false(self):
+        reserva = Reserva.objects.create(
+            modalidad=Modalidad.INDIVIDUAL,
+            cliente_nombre='Juan',
+            fecha='2026-08-20',
+            hora_inicio=time(10, 0),
+            hora_fin=time(11, 0),
+            precio_total='50.00',
+            asignada_por=self.usuario,
+        )
+        self.assertFalse(reserva.es_adelanto)
+
+    def test_se_puede_crear_marcada_como_adelanto(self):
+        reserva = Reserva.objects.create(
+            modalidad=Modalidad.INDIVIDUAL,
+            cliente_nombre='Juan',
+            fecha='2026-08-20',
+            hora_inicio=time(10, 0),
+            hora_fin=time(11, 0),
+            precio_total='50.00',
+            asignada_por=self.usuario,
+            es_adelanto=True,
+        )
+        self.assertTrue(reserva.es_adelanto)
+
+
 class AcademiaHorarioTest(TestCase):
     def setUp(self):
         self.academia = Academia.objects.create(nombre='Talentos FC')

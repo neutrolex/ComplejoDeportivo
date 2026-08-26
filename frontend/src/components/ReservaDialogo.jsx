@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Banknote, Smartphone, Trash2 } from 'lucide-react'
 import { apiFetch } from '../api'
+import { OPCIONES_DURACION, calcularHoraFin, etiquetaDuracion } from '../utils/duracion'
 import ConfirmDialogo from './ConfirmDialogo'
 import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
@@ -11,21 +12,6 @@ function montoPorMetodo(reserva, metodo) {
     .filter((p) => p.metodo === metodo)
     .reduce((acc, p) => acc + Number(p.monto), 0)
     .toFixed(2)
-}
-
-const OPCIONES_DURACION = [1, 1.5]
-
-function etiquetaDuracion(horas) {
-  const enteras = Math.floor(horas)
-  return horas % 1 === 0.5 ? `${enteras}h 30min` : `${enteras}h`
-}
-
-function calcularHoraFin(horaInicio, duracionHoras) {
-  const [h, m] = horaInicio.split(':').map(Number)
-  const totalMin = (h * 60 + m + duracionHoras * 60) % (24 * 60)
-  const hh = Math.floor(totalMin / 60)
-  const mm = totalMin % 60
-  return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`
 }
 
 export default function ReservaDialogo({ contexto, academias, onCerrar, onGuardada, onCancelada }) {

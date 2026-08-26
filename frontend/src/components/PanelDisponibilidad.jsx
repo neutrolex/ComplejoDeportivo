@@ -63,6 +63,18 @@ function estiloAcademia(reserva, oscuro) {
   }
 }
 
+// Adelanto = reserva creada por el flujo "Agregar adelanto": se pinta de
+// negro para siempre (incluso ya pagada del todo), con prioridad sobre el
+// color de academia -- en la practica no deberian solaparse porque ese
+// flujo no permite elegir academia (ver spec de adelantos, seccion 2.5).
+function estiloAdelanto(reserva, oscuro) {
+  if (!reserva.es_adelanto) return {}
+  return {
+    backgroundColor: oscuro ? '#000000' : '#0f172a',
+    borderColor: oscuro ? '#334155' : '#1e293b',
+  }
+}
+
 function colorTextoAcademia(reserva) {
   return reserva.academia ? { color: reserva.academia.color } : {}
 }
@@ -116,6 +128,12 @@ function CeldaEstado({ reserva, rowSpan, etiquetaCancha, onAbrir }) {
 }
 
 function ContenidoReserva({ reserva, extra }) {
+  const claseNombre = reserva.es_adelanto
+    ? 'min-w-0 truncate font-semibold text-slate-100'
+    : 'min-w-0 truncate font-semibold text-rose-700 dark:text-rose-300'
+  const claseHora = reserva.es_adelanto
+    ? 'flex items-center gap-1 text-xs text-slate-300'
+    : 'flex items-center gap-1 text-xs text-rose-500 dark:text-rose-400'
   return (
     <>
       <div className="flex w-full min-w-0 items-center gap-2">
@@ -123,10 +141,10 @@ function ContenidoReserva({ reserva, extra }) {
             si la academia se renombro despues, la celda mostraria el nombre
             viejo con el color nuevo. Se prefiere el nombre vivo de la
             academia y se cae a cliente_nombre para reservas sin academia. */}
-        <span className="min-w-0 truncate font-semibold text-rose-700 dark:text-rose-300" style={colorTextoAcademia(reserva)}>{reserva.academia?.nombre ?? reserva.cliente_nombre}</span>
+        <span className={claseNombre} style={colorTextoAcademia(reserva)}>{reserva.academia?.nombre ?? reserva.cliente_nombre}</span>
         {extra}
       </div>
-      <span className="flex items-center gap-1 text-xs text-rose-500 dark:text-rose-400">
+      <span className={claseHora}>
         <Clock className="h-3 w-3" />
         {rangoTexto(reserva)}
       </span>
@@ -248,6 +266,10 @@ export default function PanelDisponibilidad() {
 
   function onCancelada(id) {
     setReservas((anteriores) => anteriores.filter((r) => r.id !== id))
+  }
+
+  function onAdelantoCreadoEnGrilla(reservaCreada) {
+    if (reservaCreada.fecha === fecha) onGuardada(reservaCreada)
   }
 
   const bloques = generarBloques(tarifas)
@@ -373,7 +395,7 @@ export default function PanelDisponibilidad() {
                                 onClick={() => abrirEditar(completoInfo.reserva, 'Campo completo')}
                                 title={completoInfo.reserva.cliente_nombre}
                                 className="flex h-full w-full min-w-0 flex-col items-start justify-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-left dark:border-rose-500/30 dark:bg-rose-500/10"
-                                style={{ ...estiloAcademia(completoInfo.reserva, oscuro), minHeight: `${completoInfo.rowSpan * 2.5}rem` }}
+                                style={{ ...estiloAcademia(completoInfo.reserva, oscuro), ...estiloAdelanto(completoInfo.reserva, oscuro), minHeight: `${completoInfo.rowSpan * 2.5}rem` }}
                               >
                                 <ContenidoReserva
                                   reserva={completoInfo.reserva}
@@ -396,7 +418,7 @@ export default function PanelDisponibilidad() {
                                         onClick={() => abrirEditar(info.reserva, `Cancha ${c.numero}`)}
                                         title={info.reserva.cliente_nombre}
                                         className="flex h-full w-full min-w-0 flex-col items-start justify-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-left dark:border-rose-500/30 dark:bg-rose-500/10"
-                                        style={{ ...estiloAcademia(info.reserva, oscuro), minHeight: `${info.rowSpan * 2.5}rem` }}
+                                        style={{ ...estiloAcademia(info.reserva, oscuro), ...estiloAdelanto(info.reserva, oscuro), minHeight: `${info.rowSpan * 2.5}rem` }}
                                       >
                                         <ContenidoReserva reserva={info.reserva} />
                                       </button>
@@ -458,7 +480,12 @@ export default function PanelDisponibilidad() {
         </div>
 
         <div key={`comentarios-wrap-${fecha}`} className="w-80 shrink-0" style={{ ...ANIMADO, animationDelay: '100ms' }}>
-          <ComentariosDia key={`comentarios-${fecha}`} fecha={fecha} />
+          <ComentariosDia
+            key={`comentarios-${fecha}`}
+            fecha={fecha}
+            canchas={canchas}
+            onAdelantoCreado={onAdelantoCreadoEnGrilla}
+          />
         </div>
       </div>
 
