@@ -34,6 +34,7 @@ export default function ReservaDialogo({ contexto, academias, onCerrar, onGuarda
   const [duracion, setDuracion] = useState(1)
   const [yape, setYape] = useState('0.00')
   const [efectivo, setEfectivo] = useState('0.00')
+  const [noVino, setNoVino] = useState(false)
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
   const [confirmandoEliminar, setConfirmandoEliminar] = useState(false)
@@ -48,18 +49,30 @@ export default function ReservaDialogo({ contexto, academias, onCerrar, onGuarda
       setCliente(contexto.reserva.cliente_nombre)
       setYape(montoPorMetodo(contexto.reserva, 'yape'))
       setEfectivo(montoPorMetodo(contexto.reserva, 'efectivo'))
+      setNoVino(contexto.reserva.estado === 'ausente')
     } else {
       setCliente('')
       setAcademiaId('')
       setDuracion(1)
       setYape('0.00')
       setEfectivo('0.00')
+      setNoVino(false)
     }
   }, [contexto])
 
   if (!contexto) return null
 
   const total = (Number(yape) || 0) + (Number(efectivo) || 0)
+
+  // Al elegir una academia ya guardada no tiene sentido pedirle a la
+  // persona que ademas escriba el nombre a mano -- se autocompleta con el
+  // nombre de la academia (y el campo se bloquea, igual que en modo
+  // editar) y se destraba solo si vuelve a "Ninguna (cliente casual)".
+  function alCambiarAcademia(id) {
+    setAcademiaId(id)
+    const academia = academias.find((a) => String(a.id) === id)
+    setCliente(academia ? academia.nombre : '')
+  }
 
   async function guardar() {
     setError('')
@@ -70,10 +83,16 @@ export default function ReservaDialogo({ contexto, academias, onCerrar, onGuarda
     setGuardando(true)
     try {
       if (modoEditar) {
-        const actualizada = await apiFetch(`/reservas/${contexto.reserva.id}/pagos/`, {
+        let actualizada = await apiFetch(`/reservas/${contexto.reserva.id}/pagos/`, {
           method: 'PATCH',
           body: JSON.stringify({ yape, efectivo }),
         })
+        // "No vino" es un toggle aparte de los pagos (ver el endpoint en el
+        // backend): solo se llama si el checkbox cambio respecto al estado
+        // original, para no revertirlo sin querer al tocar Guardar dos veces.
+        if (noVino !== (contexto.reserva.estado === 'ausente')) {
+          actualizada = await apiFetch(`/reservas/${contexto.reserva.id}/ausente/`, { method: 'POST' })
+        }
         onGuardada(actualizada)
       } else {
         const nueva = await apiFetch('/reservas/', {
@@ -126,26 +145,37 @@ export default function ReservaDialogo({ contexto, academias, onCerrar, onGuarda
         </DialogHeader>
 
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-slate-700" htmlFor="reserva-cliente">Cliente</label>
+          <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="reserva-cliente">Cliente</label>
           <Input
             id="reserva-cliente"
             value={cliente}
             onChange={(e) => setCliente(e.target.value)}
             placeholder="Nombre del cliente"
-            disabled={modoEditar}
+            disabled={modoEditar || Boolean(academiaId)}
           />
         </div>
 
+        {modoEditar && (
+          <label className="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+            <input
+              type="checkbox" checked={noVino}
+              onChange={(e) => setNoVino(e.target.checked)}
+              className="h-4 w-4 accent-slate-600"
+            />
+            No vino
+          </label>
+        )}
+
         {!modoEditar && academias.length > 0 && (
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-slate-700" htmlFor="reserva-academia">
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="reserva-academia">
               Academia (opcional)
             </label>
             <select
               id="reserva-academia"
               value={academiaId}
-              onChange={(e) => setAcademiaId(e.target.value)}
-              className="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm shadow-sm"
+              onChange={(e) => alCambiarAcademia(e.target.value)}
+              className="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
             >
               <option value="">Ninguna (cliente casual)</option>
               {academias.map((a) => (
@@ -157,12 +187,12 @@ export default function ReservaDialogo({ contexto, academias, onCerrar, onGuarda
 
         {!modoEditar && (
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-slate-700" htmlFor="reserva-duracion">Duración</label>
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="reserva-duracion">Duración</label>
             <select
               id="reserva-duracion"
               value={duracion}
               onChange={(e) => setDuracion(Number(e.target.value))}
-              className="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm shadow-sm"
+              className="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
             >
               {OPCIONES_DURACION.map((horas) => (
                 <option key={horas} value={horas}>
@@ -175,7 +205,7 @@ export default function ReservaDialogo({ contexto, academias, onCerrar, onGuarda
 
         <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1.5">
-            <label className="flex items-center gap-1 text-sm font-medium text-violet-700" htmlFor="reserva-yape">
+            <label className="flex items-center gap-1 text-sm font-medium text-violet-700 dark:text-violet-400" htmlFor="reserva-yape">
               <Smartphone className="h-3.5 w-3.5" /> Yape (S/)
             </label>
             <Input
@@ -184,7 +214,7 @@ export default function ReservaDialogo({ contexto, academias, onCerrar, onGuarda
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="flex items-center gap-1 text-sm font-medium text-emerald-700" htmlFor="reserva-efectivo">
+            <label className="flex items-center gap-1 text-sm font-medium text-emerald-700 dark:text-emerald-400" htmlFor="reserva-efectivo">
               <Banknote className="h-3.5 w-3.5" /> Efectivo (S/)
             </label>
             <Input
@@ -193,14 +223,14 @@ export default function ReservaDialogo({ contexto, academias, onCerrar, onGuarda
             />
           </div>
         </div>
-        <p className="text-xs text-slate-400">Si pagó en dos partes, completa ambos campos.</p>
+        <p className="text-xs text-slate-400 dark:text-slate-500">Si pagó en dos partes, completa ambos campos.</p>
 
-        <div className="flex items-center justify-between rounded-md bg-slate-50 px-3 py-2 text-sm font-medium">
+        <div className="flex items-center justify-between rounded-md bg-slate-50 px-3 py-2 text-sm font-medium dark:bg-slate-800">
           <span>Total</span>
           <span>S/{total.toFixed(2)}</span>
         </div>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 
         <div className="flex items-center justify-between">
           {modoEditar ? (

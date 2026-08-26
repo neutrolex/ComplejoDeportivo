@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { ThemeProvider } from './context/ThemeContext'
 import Login from './components/Login'
 import PanelLayout from './components/PanelLayout'
 import PanelDisponibilidad from './components/PanelDisponibilidad'
@@ -51,17 +52,19 @@ function AcademiasConLogin() {
 
 function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/horarios" element={<HorariosPublicos />} />
-          <Route path="/dashboard" element={<DashboardConLogin />} />
-          <Route path="/academias" element={<AcademiasConLogin />} />
-          <Route path="/" element={<PanelConLogin />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/horarios" element={<HorariosPublicos />} />
+            <Route path="/dashboard" element={<DashboardConLogin />} />
+            <Route path="/academias" element={<AcademiasConLogin />} />
+            <Route path="/" element={<PanelConLogin />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
+    </ThemeProvider>
   )
 }
 

@@ -48,6 +48,32 @@ def _minutos_desde_medianoche(hora, es_fin=False):
     return hora.hour * 60 + hora.minute
 
 
+def _hora_desde_minutos(minutos):
+    """Inverso de _minutos_desde_medianoche: 24*60 (medianoche como fin del
+    dia operativo) vuelve a time(0, 0)."""
+    minutos %= 24 * 60
+    return time(minutos // 60, minutos % 60)
+
+
+def segmentos_de_una_hora(hora_inicio, hora_fin):
+    """Parte [hora_inicio, hora_fin) en tramos de a lo sumo 1 hora cada uno,
+    contados desde hora_inicio -- el ultimo tramo se queda con lo que sobre
+    si la duracion total no es multiplo de 60 minutos (ej. 18:00-19:30 da
+    18:00-19:00 y 19:00-19:30). Un horario fijo de academia de varias horas
+    se materializa como una reserva independiente por tramo, para que se
+    pueda cancelar o cobrar una hora sin tocar las demas horas del mismo
+    horario."""
+    inicio_min = _minutos_desde_medianoche(hora_inicio)
+    fin_min = _minutos_desde_medianoche(hora_fin, es_fin=True)
+    segmentos = []
+    cursor = inicio_min
+    while cursor < fin_min:
+        siguiente = min(cursor + 60, fin_min)
+        segmentos.append((_hora_desde_minutos(cursor), _hora_desde_minutos(siguiente)))
+        cursor = siguiente
+    return segmentos
+
+
 def horarios_se_solapan(inicio_a, fin_a, inicio_b, fin_b):
     """True si el rango [inicio_a, fin_a) se solapa con [inicio_b, fin_b),
     tratando hora_fin=00:00 como fin del dia operativo en ambos rangos."""
@@ -56,6 +82,25 @@ def horarios_se_solapan(inicio_a, fin_a, inicio_b, fin_b):
     b_ini = _minutos_desde_medianoche(inicio_b)
     b_fin = _minutos_desde_medianoche(fin_b, es_fin=True)
     return a_ini < b_fin and a_fin > b_ini
+
+
+def conflicto_de_horario(dia_semana, hora_inicio, hora_fin, cancha_ids, excluir_academia_id=None):
+    """Busca un AcademiaHorario de OTRA academia que se solape en dia,
+    horario y al menos una cancha con lo que se esta por guardar. Devuelve
+    esa academia (para poder nombrarla en el mensaje de error) o None si no
+    hay conflicto. 'excluir_academia_id' es la academia que se esta
+    editando -- sus propios horarios no cuentan como conflicto consigo
+    misma."""
+    candidatos = (
+        AcademiaHorario.objects.filter(dia_semana=dia_semana, canchas__id__in=cancha_ids)
+        .exclude(academia_id=excluir_academia_id)
+        .select_related('academia')
+        .distinct()
+    )
+    for horario in candidatos:
+        if horarios_se_solapan(hora_inicio, hora_fin, horario.hora_inicio, horario.hora_fin):
+            return horario.academia
+    return None
 
 
 def canchas_ocupadas(fecha, hora_inicio, hora_fin, cancha_ids):
@@ -257,9 +302,10 @@ def canchas_ya_decididas(academia_id, fecha, hora_inicio, cancha_ids):
 
 def materializar_horarios_academia(fecha, usuario):
     """Por cada AcademiaHorario cuyo dia_semana coincide con 'fecha', crea
-    la Reserva real que falte (con su ReservaCancha) -- no hace nada si ya
-    existe (o si existio y se cancelo a mano), si la fecha es pasada, si no
-    hay tarifa configurada para esa hora, o si la cancha ya esta ocupada. Se
+    la Reserva real que falte por cada hora del horario (ver
+    segmentos_de_una_hora) -- no hace nada si ya existe (o si existio y se
+    cancelo a mano) para esa hora puntual, si la fecha es pasada, si no hay
+    tarifa configurada para esa hora, o si la cancha ya esta ocupada. Se
     llama desde ReservaViewSet.list() antes de devolver las reservas del
     dia: no hay ningun proceso en segundo plano, se materializa
     perezosamente la primera vez que alguien mira ese dia.
@@ -287,15 +333,6 @@ def materializar_horarios_academia(fecha, usuario):
             grupos = [[cid] for cid in cancha_ids]
             modalidad = Modalidad.INDIVIDUAL
 
-        tarifa = obtener_tarifa(modalidad, horario.hora_inicio)
-        if tarifa is None:
-            continue
-
-        inicio_min = _minutos_desde_medianoche(horario.hora_inicio)
-        fin_min = _minutos_desde_medianoche(horario.hora_fin, es_fin=True)
-        duracion_horas = Decimal(fin_min - inicio_min) / Decimal(60)
-        precio_total = (tarifa.precio_por_hora * duracion_horas).quantize(Decimal('0.01'))
-
         # La verificacion y la creacion van dentro de la misma transaccion,
         # detras de un lock sobre la fila de la academia, para que dos GET
         # simultaneos del mismo dia (StrictMode remontando el efecto, dos
@@ -303,19 +340,102 @@ def materializar_horarios_academia(fecha, usuario):
         # "todavia no existe" y crear cada uno su copia.
         with transaction.atomic():
             Academia.objects.select_for_update().filter(pk=horario.academia_id).first()
-            for grupo in grupos:
-                decididas = canchas_ya_decididas(
-                    horario.academia_id, fecha, horario.hora_inicio, grupo,
-                )
-                if decididas.issuperset(grupo):
+            # Un horario de varias horas se materializa como una reserva
+            # independiente por cada hora (el tramo final se queda con lo
+            # que sobre si la duracion no es multiplo de 60 minutos): asi se
+            # puede cancelar o cobrar una hora puntual de la academia sin
+            # tocar el resto de su horario, y en la grilla cada hora se ve
+            # como su propio bloque en vez de una sola celda gigante.
+            for seg_inicio, seg_fin in segmentos_de_una_hora(horario.hora_inicio, horario.hora_fin):
+                tarifa = obtener_tarifa(modalidad, seg_inicio)
+                if tarifa is None:
                     continue
-                if canchas_ocupadas(fecha, horario.hora_inicio, horario.hora_fin, grupo):
-                    continue
-                reserva = Reserva.objects.create(
-                    modalidad=modalidad, cliente_nombre=horario.academia.nombre, fecha=fecha,
-                    hora_inicio=horario.hora_inicio, hora_fin=horario.hora_fin,
-                    precio_total=precio_total, academia=horario.academia, asignada_por=usuario,
-                )
-                ReservaCancha.objects.bulk_create([
-                    ReservaCancha(reserva=reserva, cancha_id=cid) for cid in grupo
-                ])
+
+                inicio_min = _minutos_desde_medianoche(seg_inicio)
+                fin_min = _minutos_desde_medianoche(seg_fin, es_fin=True)
+                duracion_horas = Decimal(fin_min - inicio_min) / Decimal(60)
+                precio_total = (tarifa.precio_por_hora * duracion_horas).quantize(Decimal('0.01'))
+
+                for grupo in grupos:
+                    decididas = canchas_ya_decididas(horario.academia_id, fecha, seg_inicio, grupo)
+                    if decididas.issuperset(grupo):
+                        continue
+                    if canchas_ocupadas(fecha, seg_inicio, seg_fin, grupo):
+                        continue
+                    reserva = Reserva.objects.create(
+                        modalidad=modalidad, cliente_nombre=horario.academia.nombre, fecha=fecha,
+                        hora_inicio=seg_inicio, hora_fin=seg_fin,
+                        precio_total=precio_total, academia=horario.academia,
+                        academia_horario=horario, asignada_por=usuario,
+                    )
+                    ReservaCancha.objects.bulk_create([
+                        ReservaCancha(reserva=reserva, cancha_id=cid) for cid in grupo
+                    ])
+
+
+def _cancelar_reservas_futuras(queryset):
+    """Pasa a estado=CANCELADA las reservas de 'queryset' cuya fecha sea
+    hoy o futura. Las pasadas no se tocan -- son historial, no una
+    ocurrencia pendiente que haya que desarmar."""
+    queryset.filter(fecha__gte=timezone.localdate()).exclude(
+        estado=Reserva.Estado.CANCELADA,
+    ).update(estado=Reserva.Estado.CANCELADA)
+
+
+def cancelar_reservas_futuras_de_horario(horario):
+    """Cancela las reservas de hoy en adelante que materializar_horarios_academia
+    genero para este AcademiaHorario puntual -- ni las de otro horario de la
+    misma academia, ni las reservas manuales que un admin haya vinculado a
+    mano (esas no tienen 'academia_horario'). Se llama antes de borrar o
+    reemplazar un horario (al editarlo o quitarlo desde la pantalla de
+    Academias) para que el administrador de campo deje de mostrar
+    ocurrencias de un horario que ya no existe."""
+    _cancelar_reservas_futuras(Reserva.objects.filter(academia_horario=horario))
+
+
+def cancelar_reservas_futuras_de_academia(academia):
+    """Igual que cancelar_reservas_futuras_de_horario, pero para todos los
+    horarios de la academia a la vez -- se usa al borrar la academia
+    entera, para no dejar reservas fantasma en la grilla."""
+    _cancelar_reservas_futuras(Reserva.objects.filter(academia_horario__academia=academia))
+
+
+def sincronizar_horarios_academia(academia, horarios_entrada):
+    """Reemplaza los AcademiaHorario de 'academia' por los descritos en
+    'horarios_entrada' (misma forma que valida HorarioEntradaSerializer:
+    cada fila trae 'dias' como lista y se expande a un AcademiaHorario por
+    dia). Un horario que ya existia tal cual -- mismo dia, mismo horario,
+    mismas canchas -- se deja intacto (no se le cambia el id), para no
+    perder el vinculo con las reservas que ya genero. Un horario que
+    desaparece o cambia de horario/cancha se borra, y justo antes se
+    cancelan las reservas futuras que habia generado: son ocurrencias de un
+    horario que ya no existe tal cual, no deben seguir en el administrador
+    de campo. Las reservas pasadas nunca se tocan."""
+    deseados = {}
+    for horario in horarios_entrada:
+        canchas = frozenset(c.id for c in horario['canchas'])
+        for dia in horario['dias']:
+            clave = (dia, horario['hora_inicio'], horario['hora_fin'], canchas)
+            deseados[clave] = horario['canchas']
+
+    existentes = {}
+    for fila in academia.horarios.prefetch_related('canchas'):
+        clave = (
+            fila.dia_semana, fila.hora_inicio, fila.hora_fin,
+            frozenset(fila.canchas.values_list('id', flat=True)),
+        )
+        existentes[clave] = fila
+
+    for clave, fila in existentes.items():
+        if clave not in deseados:
+            cancelar_reservas_futuras_de_horario(fila)
+            fila.delete()
+
+    for clave, canchas in deseados.items():
+        if clave in existentes:
+            continue
+        dia, hora_inicio, hora_fin, _ = clave
+        fila = AcademiaHorario.objects.create(
+            academia=academia, dia_semana=dia, hora_inicio=hora_inicio, hora_fin=hora_fin,
+        )
+        fila.canchas.set(canchas)

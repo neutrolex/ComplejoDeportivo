@@ -46,6 +46,7 @@ class Reserva(models.Model):
         CONFIRMADA = 'confirmada', 'Confirmada'
         CANCELADA = 'cancelada', 'Cancelada'
         COMPLETADA = 'completada', 'Completada'
+        AUSENTE = 'ausente', 'No vino'
 
     modalidad = models.CharField(max_length=20, choices=Modalidad.choices)
     cliente_nombre = models.CharField(max_length=150)
@@ -63,6 +64,17 @@ class Reserva(models.Model):
     academia = models.ForeignKey(
         'Academia', on_delete=models.SET_NULL, null=True, blank=True,
         related_name='reservas',
+    )
+    # Solo se completa cuando la reserva la creo materializar_horarios_academia
+    # (nunca en una reserva manual, aunque tenga 'academia'). Permite, al
+    # borrar o editar ese horario fijo desde la pantalla de Academias,
+    # encontrar exactamente las reservas que genero -- y solo esas, no las
+    # de otro horario de la misma academia ni las reservas manuales que un
+    # admin haya vinculado a mano. SET_NULL: al borrarse el horario, la
+    # reserva ya cancelada conserva su historial, solo pierde el vinculo.
+    academia_horario = models.ForeignKey(
+        'AcademiaHorario', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='reservas_generadas',
     )
     # PROTECT: no se puede borrar un usuario interno que tenga reservas a su
     # nombre (para eso está 'activo=False', que lo desactiva sin perder el

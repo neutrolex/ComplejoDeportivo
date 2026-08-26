@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { ChevronLeft, ChevronRight, Clock } from 'lucide-react'
 import { apiFetch } from '../api'
+import { useTheme } from '../context/ThemeContext'
 import { formatearFecha, formatearFechaLarga, sumarDias } from '../utils/fecha'
 import CalendarioPopover from './CalendarioPopover'
 import { Badge } from './ui/badge'
@@ -46,12 +47,19 @@ function montosDeReserva(reserva) {
   return { yape: suma('yape'), efectivo: suma('efectivo') }
 }
 
-function estiloAcademia(reserva) {
+// La mezcla de color se hace sobre blanco en modo claro y sobre un slate
+// bien oscuro en modo oscuro -- mezclar siempre con blanco daria, en modo
+// oscuro, una celda pastel clara que desentona con el resto de la grilla.
+function estiloAcademia(reserva, oscuro) {
   if (!reserva.academia) return {}
   const color = reserva.academia.color
+  const base = oscuro ? '#0f172a' : 'white'
+  // Mezclas mas bajas que antes (fondo y borde): se nota que la tarjeta
+  // tiene un color propio sin llegar a competir con el nombre/badges que
+  // van encima.
   return {
-    backgroundColor: `color-mix(in srgb, ${color} 12%, white)`,
-    borderColor: `color-mix(in srgb, ${color} 45%, white)`,
+    backgroundColor: `color-mix(in srgb, ${color} ${oscuro ? '16%' : '8%'}, ${base})`,
+    borderColor: `color-mix(in srgb, ${color} ${oscuro ? '38%' : '28%'}, ${base})`,
   }
 }
 
@@ -60,18 +68,50 @@ function colorTextoAcademia(reserva) {
 }
 
 function BadgesPago({ reserva }) {
-  // Si no se pago nada, un unico badge "Pendiente". En cuanto hay algun
-  // pago, se muestran los DOS montos (aunque uno sea S/0.00) para que
-  // quede claro cual metodo falta -- nunca queda un monto oculto.
+  // Solo se muestra el metodo que realmente tiene monto cargado -- si pago
+  // 50 en Yape y nada en Efectivo, se ve unicamente "Yape S/50.00" (antes
+  // se mostraban los dos aunque uno quedara en S/0.00). "Pendiente" solo
+  // cuando no hay ningun pago cargado.
   const { yape, efectivo } = montosDeReserva(reserva)
   if (yape === 0 && efectivo === 0) {
     return <Badge variant="pendiente">Pendiente</Badge>
   }
   return (
-    <>
-      <Badge variant="yape">Yape S/{yape.toFixed(2)}</Badge>
-      <Badge variant="efectivo">Efectivo S/{efectivo.toFixed(2)}</Badge>
-    </>
+    <div className="flex flex-col items-start gap-1">
+      {yape > 0 && <Badge variant="yape">Yape S/{yape.toFixed(2)}</Badge>}
+      {efectivo > 0 && <Badge variant="efectivo">Efectivo S/{efectivo.toFixed(2)}</Badge>}
+    </div>
+  )
+}
+
+// Columna "Pago" propia al costado de cada cancha (y de Campo completo): el
+// estado de pago y el de "no vino" viven ahi, no adentro de la tarjeta de
+// la reserva -- asi la tarjeta se queda solo con nombre+hora (2 lineas,
+// entra comoda hasta en un bloque de 30min) y no hace falta un modo
+// compacto especial que antes deformaba la fila.
+//
+// La celda entera es un boton que abre el dialogo de editar (igual que la
+// tarjeta de al lado): nada de auto-cobrar un monto con un solo clic --
+// cargar cuanto pago, en que metodo, o marcar "no vino" se hace a mano
+// adentro del dialogo.
+function CeldaEstado({ reserva, rowSpan, etiquetaCancha, onAbrir }) {
+  const ausente = reserva.estado === 'ausente'
+  return (
+    <td rowSpan={rowSpan} className="px-2 py-1.5 align-top">
+      <button
+        type="button"
+        onClick={() => onAbrir(reserva, etiquetaCancha)}
+        title="Editar pago"
+        className="flex h-full w-full flex-col items-start justify-center gap-1 text-left"
+        style={{ minHeight: `${rowSpan * 2.5}rem` }}
+      >
+        {/* "No vino" no reemplaza el badge de pago -- son cosas
+            independientes (se puede haber cobrado una sena aunque despues
+            no haya venido), asi que se muestran los dos juntos. */}
+        {ausente && <Badge variant="ausente">No vino</Badge>}
+        <BadgesPago reserva={reserva} />
+      </button>
+    </td>
   )
 }
 
@@ -83,16 +123,13 @@ function ContenidoReserva({ reserva, extra }) {
             si la academia se renombro despues, la celda mostraria el nombre
             viejo con el color nuevo. Se prefiere el nombre vivo de la
             academia y se cae a cliente_nombre para reservas sin academia. */}
-        <span className="min-w-0 truncate font-semibold text-rose-700" style={colorTextoAcademia(reserva)}>{reserva.academia?.nombre ?? reserva.cliente_nombre}</span>
+        <span className="min-w-0 truncate font-semibold text-rose-700 dark:text-rose-300" style={colorTextoAcademia(reserva)}>{reserva.academia?.nombre ?? reserva.cliente_nombre}</span>
         {extra}
       </div>
-      <span className="flex items-center gap-1 text-xs text-rose-500">
+      <span className="flex items-center gap-1 text-xs text-rose-500 dark:text-rose-400">
         <Clock className="h-3 w-3" />
         {rangoTexto(reserva)}
       </span>
-      <div className="flex flex-wrap gap-1">
-        <BadgesPago reserva={reserva} />
-      </div>
     </>
   )
 }
@@ -142,6 +179,8 @@ function construirGrilla(bloques, canchas, reservas) {
 const ANIMADO = { animation: 'fade-slide-up 280ms cubic-bezier(0.16, 1, 0.3, 1) both' }
 
 export default function PanelDisponibilidad() {
+  const { tema } = useTheme()
+  const oscuro = tema === 'oscuro'
   const [fecha, setFecha] = useState(formatearFecha(new Date()))
   const [canchas, setCanchas] = useState([])
   const [tarifas, setTarifas] = useState([])
@@ -218,10 +257,10 @@ export default function PanelDisponibilidad() {
     <div>
       <div className="mb-5 flex items-center justify-between" style={ANIMADO}>
         <div>
-          <h2 className="text-2xl font-bold text-slate-900">Reservas</h2>
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Reservas</h2>
           <div
             key={fecha}
-            className="mt-1 flex items-center gap-1.5 text-sm text-slate-500"
+            className="mt-1 flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400"
             style={{ animation: 'fade-slide-up 220ms cubic-bezier(0.16, 1, 0.3, 1) both' }}
           >
             <span aria-hidden="true">📅</span>
@@ -233,7 +272,7 @@ export default function PanelDisponibilidad() {
             type="button"
             onClick={() => setFecha((f) => sumarDias(f, -1))}
             aria-label="Día anterior"
-            className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-500 shadow-sm hover:bg-slate-50"
+            className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-500 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
@@ -242,7 +281,7 @@ export default function PanelDisponibilidad() {
             type="button"
             onClick={() => setFecha((f) => sumarDias(f, 1))}
             aria-label="Día siguiente"
-            className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-500 shadow-sm hover:bg-slate-50"
+            className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-500 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
@@ -251,43 +290,66 @@ export default function PanelDisponibilidad() {
 
       <div className="flex gap-6">
         <div className="min-w-0 flex-1">
-          {error && <p className="text-red-600">{error}</p>}
+          {error && <p className="text-red-600 dark:text-red-400">{error}</p>}
           {/* Solo se muestra "Cargando..." la primerísima vez (antes de tener
               ninguna cancha todavía). En cambios de fecha posteriores la
               grilla se queda a la vista y solo se atenua -- reemplazarla de
               golpe por "Cargando..." es lo que se sentía brusco. */}
-          {!error && cargando && canchas.length === 0 && <p>Cargando...</p>}
+          {!error && cargando && canchas.length === 0 && <p className="dark:text-slate-300">Cargando...</p>}
 
           {!error && canchas.length > 0 && (
             <div
-              className={`max-h-[68vh] overflow-auto rounded-xl border border-slate-200 bg-white shadow-sm transition-opacity duration-300 ${
+              className={`max-h-[68vh] overflow-auto rounded-xl border border-slate-200 bg-white shadow-sm transition-opacity duration-300 dark:border-slate-800 dark:bg-slate-900 ${
                 cargando ? 'pointer-events-none opacity-40' : 'opacity-100'
               }`}
               style={{ ...ANIMADO, animationDelay: '60ms' }}
             >
-              <table className="w-full table-fixed border-collapse text-sm">
+              {/* Sin w-full: con 5 pares cancha+estado no entran comodos en el
+                  ancho del panel -- se le da a cada columna un ancho fijo
+                  propio (mas del que entra) y el contenedor de arriba
+                  (overflow-auto) scrollea horizontal en vez de aplastarlas
+                  todas hasta volverlas ilegibles. */}
+              <table className="table-fixed border-collapse text-sm">
                 <colgroup>
                   <col className="w-16" />
-                  {canchas.map((c) => <col key={c.id} />)}
-                  <col />
+                  {canchas.map((c) => (
+                    <Fragment key={c.id}>
+                      <col className="w-40" />
+                      <col className="w-28" />
+                    </Fragment>
+                  ))}
+                  <col className="w-44" />
+                  <col className="w-28" />
                 </colgroup>
                 <thead>
-                  <tr className="bg-slate-800 text-white">
-                    <th className="sticky top-0 z-10 bg-slate-800 px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide">Hora</th>
+                  <tr className="bg-slate-800 text-white dark:bg-slate-950">
+                    <th className="sticky top-0 z-10 bg-slate-800 px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide dark:bg-slate-950">Hora</th>
                     {canchas.map((c) => (
-                      <th key={c.id} className="sticky top-0 z-10 truncate bg-slate-800 px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide">
-                        Cancha {c.numero}
-                      </th>
+                      <Fragment key={c.id}>
+                        <th className="sticky top-0 z-10 truncate bg-slate-800 px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide dark:bg-slate-950">
+                          Cancha {c.numero}
+                        </th>
+                        <th className="sticky top-0 z-10 truncate bg-slate-800 px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide dark:bg-slate-950">
+                          Pago
+                        </th>
+                      </Fragment>
                     ))}
-                    <th className="sticky top-0 z-10 truncate bg-slate-800 px-3 py-2.5 text-left text-xs font-semibold uppercase">Campo completo</th>
+                    <th className="sticky top-0 z-10 truncate bg-slate-800 px-3 py-2.5 text-left text-xs font-semibold uppercase dark:bg-slate-950">Campo completo</th>
+                    <th className="sticky top-0 z-10 truncate bg-slate-800 px-3 py-2.5 text-left text-xs font-semibold uppercase dark:bg-slate-950">Pago</th>
                   </tr>
                 </thead>
                 <tbody>
                   {bloques.map((bloque, filaIdx) => {
                     const esMedia = bloque % 1 !== 0
                     const completoInfo = grilla.completo[filaIdx]
-                    const filaClase = esMedia ? 'bg-slate-50' : 'bg-white'
-                    const horaClase = esMedia ? 'text-xs text-slate-400' : 'text-sm text-slate-500'
+                    // Fondo parejo en vez del rayado sutil por media hora de
+                    // antes -- ahora cada hora en punto (menos la primera,
+                    // pegada al encabezado) marca una linea divisoria, como
+                    // una grilla de calendario real en vez de una tabla lisa.
+                    const filaClase = `bg-white dark:bg-slate-900 ${
+                      !esMedia && filaIdx !== 0 ? 'border-t border-slate-200 dark:border-slate-700' : ''
+                    }`
+                    const horaClase = esMedia ? 'text-xs text-slate-400 dark:text-slate-500' : 'text-sm text-slate-500 dark:text-slate-400'
 
                     if (completoInfo.tipo === 'cubierto') {
                       return (
@@ -301,16 +363,26 @@ export default function PanelDisponibilidad() {
                       <tr key={bloque} className={filaClase}>
                         <td className={`px-4 py-1.5 align-top ${horaClase}`}>{horaTexto(bloque)}</td>
                         {completoInfo.tipo === 'inicio' ? (
-                          <td colSpan={canchas.length + 1} rowSpan={completoInfo.rowSpan} className="px-2 py-1.5 align-top">
-                            <button
-                              onClick={() => abrirEditar(completoInfo.reserva, 'Campo completo')}
-                              title={completoInfo.reserva.cliente_nombre}
-                              className="flex h-full w-full min-w-0 flex-col items-start justify-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-left"
-                              style={estiloAcademia(completoInfo.reserva)}
-                            >
-                              <ContenidoReserva reserva={completoInfo.reserva} extra={<Badge className="shrink-0">Campo completo</Badge>} />
-                            </button>
-                          </td>
+                          <>
+                            <td colSpan={canchas.length * 2 + 1} rowSpan={completoInfo.rowSpan} className="px-2 py-1.5 align-top">
+                              {/* min-height (no porcentual) en vez de h-full: un <td>
+                                  con rowSpan no le pasa su altura real (la de las N
+                                  filas que abarca) a un hijo con height:100% -- es
+                                  una limitacion conocida del layout de tablas. */}
+                              <button
+                                onClick={() => abrirEditar(completoInfo.reserva, 'Campo completo')}
+                                title={completoInfo.reserva.cliente_nombre}
+                                className="flex h-full w-full min-w-0 flex-col items-start justify-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-left dark:border-rose-500/30 dark:bg-rose-500/10"
+                                style={{ ...estiloAcademia(completoInfo.reserva, oscuro), minHeight: `${completoInfo.rowSpan * 2.5}rem` }}
+                              >
+                                <ContenidoReserva
+                                  reserva={completoInfo.reserva}
+                                  extra={<Badge className="shrink-0">Campo completo</Badge>}
+                                />
+                              </button>
+                            </td>
+                            <CeldaEstado reserva={completoInfo.reserva} rowSpan={completoInfo.rowSpan} etiquetaCancha="Campo completo" onAbrir={abrirEditar} />
+                          </>
                         ) : (
                           <>
                             {canchas.map((c) => {
@@ -318,48 +390,58 @@ export default function PanelDisponibilidad() {
                               if (info.tipo === 'cubierto') return null
                               if (info.tipo === 'inicio') {
                                 return (
-                                  <td key={c.id} rowSpan={info.rowSpan} className="px-2 py-1.5 align-top">
-                                    <button
-                                      onClick={() => abrirEditar(info.reserva, `Cancha ${c.numero}`)}
-                                      title={info.reserva.cliente_nombre}
-                                      className="flex h-full w-full min-w-0 flex-col items-start justify-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-left"
-                                      style={estiloAcademia(info.reserva)}
-                                    >
-                                      <ContenidoReserva reserva={info.reserva} />
-                                    </button>
-                                  </td>
+                                  <Fragment key={c.id}>
+                                    <td rowSpan={info.rowSpan} className="px-2 py-1.5 align-top">
+                                      <button
+                                        onClick={() => abrirEditar(info.reserva, `Cancha ${c.numero}`)}
+                                        title={info.reserva.cliente_nombre}
+                                        className="flex h-full w-full min-w-0 flex-col items-start justify-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-left dark:border-rose-500/30 dark:bg-rose-500/10"
+                                        style={{ ...estiloAcademia(info.reserva, oscuro), minHeight: `${info.rowSpan * 2.5}rem` }}
+                                      >
+                                        <ContenidoReserva reserva={info.reserva} />
+                                      </button>
+                                    </td>
+                                    <CeldaEstado reserva={info.reserva} rowSpan={info.rowSpan} etiquetaCancha={`Cancha ${c.numero}`} onAbrir={abrirEditar} />
+                                  </Fragment>
                                 )
                               }
                               if (info.tipo === 'bloqueada') {
                                 return (
-                                  <td key={c.id} className="px-2 py-1">
-                                    <div className="px-3 py-1.5 text-slate-300">-</div>
-                                  </td>
+                                  <Fragment key={c.id}>
+                                    <td className="px-2 py-1">
+                                      <div className="px-3 py-1.5 text-slate-300 dark:text-slate-600">-</div>
+                                    </td>
+                                    <td className="px-2 py-1" />
+                                  </Fragment>
                                 )
                               }
                               return (
-                                <td key={c.id} className="px-2 py-1">
-                                  <button
-                                    onClick={() => abrirCrear(bloque, c)}
-                                    className="w-full rounded-lg px-3 py-1.5 text-left text-slate-400 transition-colors hover:bg-emerald-50 hover:text-emerald-700"
-                                  >
-                                    Libre
-                                  </button>
-                                </td>
+                                <Fragment key={c.id}>
+                                  <td className="px-2 py-1">
+                                    <button
+                                      onClick={() => abrirCrear(bloque, c)}
+                                      className="w-full rounded-lg px-3 py-1.5 text-left text-slate-400 transition-colors hover:bg-emerald-50 hover:text-emerald-700 dark:text-slate-600 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-400"
+                                    >
+                                      Libre
+                                    </button>
+                                  </td>
+                                  <td className="px-2 py-1" />
+                                </Fragment>
                               )
                             })}
                             <td className="px-2 py-1">
                               {canchas.some((c) => grilla[c.id][filaIdx].tipo !== 'libre') ? (
-                                <div className="px-3 py-1.5 text-slate-300">-</div>
+                                <div className="px-3 py-1.5 text-slate-300 dark:text-slate-600">-</div>
                               ) : (
                                 <button
                                   onClick={() => abrirCrearCompleto(bloque)}
-                                  className="w-full truncate rounded-lg px-3 py-1.5 text-left text-slate-400 transition-colors hover:bg-emerald-50 hover:text-emerald-700"
+                                  className="w-full truncate rounded-lg px-3 py-1.5 text-left text-slate-400 transition-colors hover:bg-emerald-50 hover:text-emerald-700 dark:text-slate-600 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-400"
                                 >
                                   Reservar todo
                                 </button>
                               )}
                             </td>
+                            <td className="px-2 py-1" />
                           </>
                         )}
                       </tr>
