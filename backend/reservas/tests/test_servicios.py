@@ -13,6 +13,7 @@ from reservas.servicios import (
     guardar_pago,
     horarios_se_solapan,
     horas_operativas,
+    listar_adelantos_pendientes,
     materializar_horarios_academia,
     nombre_academia_visible,
     obtener_tarifa,
@@ -820,3 +821,48 @@ class SincronizarHorariosAcademiaTest(TestCase):
         reserva_martes.refresh_from_db()
         self.assertEqual(reserva_lunes.estado, Reserva.Estado.CANCELADA)
         self.assertEqual(reserva_martes.estado, Reserva.Estado.CONFIRMADA)
+
+
+class ListarAdelantosPendientesTest(TestCase):
+    def setUp(self):
+        self.usuario = UsuarioInterno.objects.create_user(
+            usuario='ana', password='clave123', nombre='Ana',
+        )
+
+    def _crear_reserva(self, fecha, es_adelanto=True, estado=Reserva.Estado.CONFIRMADA, precio_total='50.00'):
+        return Reserva.objects.create(
+            modalidad=Modalidad.INDIVIDUAL, cliente_nombre='Cliente', fecha=fecha,
+            hora_inicio=time(10, 0), hora_fin=time(11, 0), precio_total=precio_total,
+            asignada_por=self.usuario, es_adelanto=es_adelanto, estado=estado,
+        )
+
+    def test_incluye_adelanto_con_saldo_pendiente(self):
+        reserva = self._crear_reserva('2026-09-01')
+        Pago.objects.create(
+            reserva=reserva, tipo=Pago.Tipo.ADELANTO, monto=Decimal('20.00'),
+            metodo=Pago.Metodo.EFECTIVO, registrado_por=self.usuario,
+        )
+        resultado = listar_adelantos_pendientes()
+        self.assertEqual([r.id for r in resultado], [reserva.id])
+
+    def test_no_incluye_adelanto_ya_pagado_del_todo(self):
+        reserva = self._crear_reserva('2026-09-01')
+        Pago.objects.create(
+            reserva=reserva, tipo=Pago.Tipo.ADELANTO, monto=Decimal('50.00'),
+            metodo=Pago.Metodo.EFECTIVO, registrado_por=self.usuario,
+        )
+        self.assertEqual(listar_adelantos_pendientes(), [])
+
+    def test_no_incluye_reservas_normales_sin_es_adelanto(self):
+        self._crear_reserva('2026-09-01', es_adelanto=False)
+        self.assertEqual(listar_adelantos_pendientes(), [])
+
+    def test_no_incluye_adelanto_cancelado(self):
+        self._crear_reserva('2026-09-01', estado=Reserva.Estado.CANCELADA)
+        self.assertEqual(listar_adelantos_pendientes(), [])
+
+    def test_ordena_por_fecha_y_hora_ascendente(self):
+        tarde = self._crear_reserva('2026-09-05')
+        temprano = self._crear_reserva('2026-09-01')
+        resultado = listar_adelantos_pendientes()
+        self.assertEqual([r.id for r in resultado], [temprano.id, tarde.id])

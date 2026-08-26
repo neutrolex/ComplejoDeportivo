@@ -28,6 +28,7 @@ from .servicios import (
     guardar_pago,
     horarios_se_solapan,
     horas_operativas,
+    listar_adelantos_pendientes,
     materializar_horarios_academia,
     nombre_academia_visible,
     obtener_tarifa,
@@ -217,6 +218,11 @@ class ReservaViewSet(viewsets.ViewSet):
         )
         reserva.save(update_fields=['estado'])
         return Response(ReservaSerializer(reserva).data)
+
+    @action(detail=False, methods=['get'], url_path='adelantos-pendientes')
+    def adelantos_pendientes(self, request):
+        reservas = listar_adelantos_pendientes()
+        return Response(ReservaSerializer(reservas, many=True).data)
 
     @action(detail=True, methods=['patch'])
     def pagos(self, request, pk=None):

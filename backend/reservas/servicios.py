@@ -443,3 +443,23 @@ def sincronizar_horarios_academia(academia, horarios_entrada):
             academia=academia, dia_semana=dia, hora_inicio=hora_inicio, hora_fin=hora_fin,
         )
         fila.canchas.set(canchas)
+
+
+def listar_adelantos_pendientes():
+    """Reservas marcadas como adelanto que todavia tienen saldo por cobrar
+    (precio_total > suma de sus pagos), sin cancelar, ordenadas por fecha y
+    hora ascendente. No se filtra por fecha a proposito -- ver spec de
+    adelantos seccion 2.4 -- para no perder de vista un adelanto viejo que
+    quedo sin completar."""
+    candidatas = (
+        Reserva.objects.filter(es_adelanto=True)
+        .exclude(estado=Reserva.Estado.CANCELADA)
+        .prefetch_related('pagos')
+        .order_by('fecha', 'hora_inicio')
+    )
+    resultado = []
+    for reserva in candidatas:
+        pagado = sum((p.monto for p in reserva.pagos.all()), Decimal('0.00'))
+        if pagado < reserva.precio_total:
+            resultado.append(reserva)
+    return resultado
