@@ -1,17 +1,21 @@
 import { useEffect, useState } from 'react'
-import { MessageSquare, Plus, Trash2 } from 'lucide-react'
+import { MessageSquare, Plus, Trash2, Wallet } from 'lucide-react'
 import { apiFetch } from '../api'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
+import AdelantoDialogo from './AdelantoDialogo'
+import AdelantosPendientes from './AdelantosPendientes'
 import ComentarioDialogo from './ComentarioDialogo'
 import ConfirmDialogo from './ConfirmDialogo'
 
-export default function ComentariosDia({ fecha }) {
+export default function ComentariosDia({ fecha, canchas, onAdelantoCreado }) {
   const [comentarios, setComentarios] = useState([])
   const [cargando, setCargando] = useState(true)
   const [dialogoAbierto, setDialogoAbierto] = useState(false)
+  const [dialogoAdelantoAbierto, setDialogoAdelantoAbierto] = useState(false)
   const [comentarioAEliminar, setComentarioAEliminar] = useState(null)
   const [eliminando, setEliminando] = useState(false)
+  const [recargarAdelantos, setRecargarAdelantos] = useState(0)
 
   useEffect(() => {
     let vigente = true
@@ -33,14 +37,22 @@ export default function ComentariosDia({ fecha }) {
     }
   }
 
+  function alCrearAdelanto(nueva) {
+    onAdelantoCreado(nueva)
+    setRecargarAdelantos((n) => n + 1)
+  }
+
   return (
     <div className="sticky top-7 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="flex items-center gap-1.5 font-semibold text-slate-900 dark:text-slate-100">
-          <MessageSquare className="h-4 w-4" /> Comentarios
-        </h3>
+      <h3 className="mb-3 flex items-center gap-1.5 font-semibold text-slate-900 dark:text-slate-100">
+        <MessageSquare className="h-4 w-4" /> Observaciones del día
+      </h3>
+      <div className="mb-3 flex items-center gap-2">
         <Button size="sm" onClick={() => setDialogoAbierto(true)}>
           <Plus className="h-3.5 w-3.5" /> Agregar
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => setDialogoAdelantoAbierto(true)}>
+          <Wallet className="h-3.5 w-3.5" /> Agregar adelanto
         </Button>
       </div>
 
@@ -77,11 +89,20 @@ export default function ComentariosDia({ fecha }) {
         })}
       </div>
 
+      <AdelantosPendientes recargar={recargarAdelantos} />
+
       <ComentarioDialogo
         abierto={dialogoAbierto}
         fecha={fecha}
         onCerrar={() => setDialogoAbierto(false)}
         onCreado={(nuevo) => setComentarios((anteriores) => [nuevo, ...anteriores])}
+      />
+
+      <AdelantoDialogo
+        abierto={dialogoAdelantoAbierto}
+        canchas={canchas}
+        onCerrar={() => setDialogoAdelantoAbierto(false)}
+        onCreado={alCrearAdelanto}
       />
 
       <ConfirmDialogo

@@ -250,6 +250,10 @@ export default function PanelDisponibilidad() {
     setReservas((anteriores) => anteriores.filter((r) => r.id !== id))
   }
 
+  function onAdelantoCreadoEnGrilla(reservaCreada) {
+    if (reservaCreada.fecha === fecha) onGuardada(reservaCreada)
+  }
+
   const bloques = generarBloques(tarifas)
   const grilla = construirGrilla(bloques, canchas, reservas)
 
@@ -458,7 +462,12 @@ export default function PanelDisponibilidad() {
         </div>
 
         <div key={`comentarios-wrap-${fecha}`} className="w-80 shrink-0" style={{ ...ANIMADO, animationDelay: '100ms' }}>
-          <ComentariosDia key={`comentarios-${fecha}`} fecha={fecha} />
+          <ComentariosDia
+            key={`comentarios-${fecha}`}
+            fecha={fecha}
+            canchas={canchas}
+            onAdelantoCreado={onAdelantoCreadoEnGrilla}
+          />
         </div>
       </div>
 
