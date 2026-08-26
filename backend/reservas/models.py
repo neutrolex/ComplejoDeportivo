@@ -84,6 +84,12 @@ class Reserva(models.Model):
         on_delete=models.PROTECT,
         related_name='reservas_asignadas',
     )
+    # True solo si esta reserva se creo con el flujo "Agregar adelanto"
+    # (ver AdelantoDialogo en el frontend). No se modifica despues de
+    # creada -- es lo que mantiene la celda negra en la grilla incluso
+    # despues de completarse el pago. Independiente de que tipo de Pago
+    # tenga la reserva en cualquier momento posterior.
+    es_adelanto = models.BooleanField(default=False)
 
     class Meta:
         db_table = 'reservas'
