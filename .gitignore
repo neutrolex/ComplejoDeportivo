@@ -1,24 +1,12 @@
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.egg-info/
-
-# Entornos virtuales
-venv/
-.venv/
-env/
+# PHP
+vendor/
+composer.lock
 
 # Variables de entorno / secretos
 .env
 *.env.local
 
-# Django
-backend/staticfiles/
-backend/media/
-db.sqlite3
-
-# Node / React (para cuando exista frontend/)
+# Node / React
 node_modules/
 dist/
 .vite/
