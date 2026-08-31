@@ -9,6 +9,7 @@ declare(strict_types=1);
 // conexion PDO y el manejo de errores funcionan de punta a punta.
 
 use App\Controllers\AuthController;
+use App\Controllers\UsuarioController;
 use App\Support\Response;
 
 /** @var \App\Support\Router $router */
@@ -29,3 +30,11 @@ $router->get('/health/db', function (): void {
 $router->post('/auth/login', fn () => AuthController::login(), false);
 $router->post('/auth/refresh', fn () => AuthController::refresh(), false);
 $router->get('/auth/me', fn ($parametros, $usuario) => AuthController::me($usuario));
+
+// Usuarios internos. Todas requieren autenticacion (default del Router) y
+// ademas rol admin (chequeado dentro de cada accion del controller).
+$router->get('/usuarios', fn ($p, $u) => UsuarioController::list($p, $u));
+$router->get('/usuarios/{id}', fn ($p, $u) => UsuarioController::show($p, $u));
+$router->post('/usuarios', fn ($p, $u) => UsuarioController::create($p, $u));
+$router->put('/usuarios/{id}', fn ($p, $u) => UsuarioController::update($p, $u));
+$router->delete('/usuarios/{id}', fn ($p, $u) => UsuarioController::destroy($p, $u));
