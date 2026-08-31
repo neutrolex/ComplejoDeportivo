@@ -8,7 +8,13 @@ declare(strict_types=1);
 // ahora solo hay endpoints de diagnostico para verificar que el router, la
 // conexion PDO y el manejo de errores funcionan de punta a punta.
 
+use App\Controllers\AcademiaController;
 use App\Controllers\AuthController;
+use App\Controllers\CanchaController;
+use App\Controllers\ComentarioDiaController;
+use App\Controllers\DisponibilidadPublicaController;
+use App\Controllers\ReservaController;
+use App\Controllers\TarifaController;
 use App\Controllers\UsuarioController;
 use App\Support\Response;
 
@@ -38,3 +44,28 @@ $router->get('/usuarios/{id}', fn ($p, $u) => UsuarioController::show($p, $u));
 $router->post('/usuarios', fn ($p, $u) => UsuarioController::create($p, $u));
 $router->put('/usuarios/{id}', fn ($p, $u) => UsuarioController::update($p, $u));
 $router->delete('/usuarios/{id}', fn ($p, $u) => UsuarioController::destroy($p, $u));
+
+// Catalogo, disponibilidad publica, reservas, academias y comentarios del
+// dia. Rutas con barra final a proposito: es lo que ya usa hoy
+// frontend/src/api.js contra Django (DefaultRouter siempre la agrega),
+// asi la fase 9 no necesita tocar ninguna de estas rutas en el frontend.
+$router->get('/canchas/', fn () => CanchaController::list());
+$router->get('/tarifas/', fn () => TarifaController::list());
+$router->get('/publico/disponibilidad/', fn () => DisponibilidadPublicaController::get(), false);
+
+$router->get('/reservas/', fn ($p, $u) => ReservaController::list($p, $u));
+$router->post('/reservas/', fn ($p, $u) => ReservaController::create($p, $u));
+$router->get('/reservas/adelantos-pendientes/', fn () => ReservaController::adelantosPendientes());
+$router->get('/reservas/resumen-pagos/', fn () => ReservaController::resumenPagos());
+$router->post('/reservas/{id}/cancelar/', fn ($p) => ReservaController::cancelar($p));
+$router->post('/reservas/{id}/ausente/', fn ($p) => ReservaController::ausente($p));
+$router->patch('/reservas/{id}/pagos/', fn ($p, $u) => ReservaController::pagos($p, $u));
+
+$router->get('/academias/', fn () => AcademiaController::list());
+$router->post('/academias/', fn () => AcademiaController::create());
+$router->patch('/academias/{id}/', fn ($p) => AcademiaController::update($p));
+$router->delete('/academias/{id}/', fn ($p) => AcademiaController::destroy($p));
+
+$router->get('/comentarios-dia/', fn () => ComentarioDiaController::list());
+$router->post('/comentarios-dia/', fn ($p, $u) => ComentarioDiaController::create($p, $u));
+$router->delete('/comentarios-dia/{id}/', fn ($p) => ComentarioDiaController::destroy($p));
