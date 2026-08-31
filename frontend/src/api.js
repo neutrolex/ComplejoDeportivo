@@ -49,7 +49,7 @@ export async function apiFetch(ruta, opciones = {}) {
 }
 
 export async function login(usuario, password) {
-  const respuesta = await fetch(`${BASE_URL}/token/`, {
+  const respuesta = await fetch(`${BASE_URL}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ usuario, password }),
