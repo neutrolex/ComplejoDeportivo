@@ -1,0 +1,14 @@
+RewriteEngine On
+
+# Las peticiones a /api/... las maneja el .htaccess de esa carpeta
+# (backend-php/.htaccess, subido como htdocs/api/ en produccion); esta
+# regla las deja pasar tal cual, sin caer en el fallback de abajo.
+RewriteRule ^api/ - [L]
+
+# Si el archivo o directorio pedido existe de verdad (assets/, favicon,
+# etc.), se sirve tal cual. Si no, se devuelve index.html para que React
+# Router decida la ruta en el cliente -- evita que Apache devuelva 404 al
+# entrar directo por URL a /reservas, /dashboard, /login, etc.
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.html [L]

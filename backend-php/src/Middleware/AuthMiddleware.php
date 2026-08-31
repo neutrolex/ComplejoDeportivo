@@ -17,7 +17,7 @@ class AuthMiddleware
 {
     public static function requerirUsuario(): array
     {
-        $encabezado = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+        $encabezado = self::obtenerEncabezadoAuthorization();
         if (!str_starts_with($encabezado, 'Bearer ')) {
             throw new HttpException('No autenticado.', 401);
         }
@@ -33,5 +33,29 @@ class AuthMiddleware
         }
 
         return $fila;
+    }
+
+    // Muchos hosts compartidos corren PHP como CGI/FastCGI, que no le pasa
+    // el header Authorization a $_SERVER['HTTP_AUTHORIZATION'] por
+    // defecto (rompe la autenticacion Bearer por completo). El
+    // .htaccess de produccion lo reenvia como variable de entorno via
+    // mod_rewrite, pero cada redireccion interna de Apache (el handler de
+    // Action para .php, la reescritura a public/index.php) le antepone
+    // otro 'REDIRECT_' al nombre -- la cantidad exacta de prefijos varia
+    // segun como este configurado el host, asi que se busca cualquier
+    // clave que termine en '_HTTP_AUTHORIZATION' en vez de asumir una
+    // profundidad fija. Verificado en un Apache+CGI real: aparece como
+    // REDIRECT_REDIRECT_HTTP_AUTHORIZATION.
+    private static function obtenerEncabezadoAuthorization(): string
+    {
+        if (!empty($_SERVER['HTTP_AUTHORIZATION'])) {
+            return (string) $_SERVER['HTTP_AUTHORIZATION'];
+        }
+        foreach ($_SERVER as $clave => $valor) {
+            if ($valor !== '' && str_ends_with($clave, '_HTTP_AUTHORIZATION')) {
+                return (string) $valor;
+            }
+        }
+        return '';
     }
 }

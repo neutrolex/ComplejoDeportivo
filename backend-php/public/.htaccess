@@ -1,5 +1,11 @@
 RewriteEngine On
 
+# Ver backend-php/.htaccess: mismo reenvio del header Authorization para
+# hosts que corren PHP como CGI/FastCGI.
+RewriteCond %{HTTP:Authorization} ^(.*)
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%1]
+CGIPassAuth On
+
 # Si el archivo o directorio pedido existe de verdad (assets, etc.), se
 # sirve tal cual. Si no, todo pasa por index.php, que arma su propio
 # router a partir de routes/api.php.

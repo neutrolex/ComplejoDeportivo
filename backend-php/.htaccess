@@ -1,0 +1,27 @@
+RewriteEngine On
+
+# Estructura de produccion en hosting compartido (InfinityFree y similares,
+# sin control sobre el DocumentRoot): esta carpeta completa (backend-php/)
+# se sube tal cual como htdocs/api/, y todo lo que llegue bajo /api/ pasa
+# por public/index.php, que arma su propio router a partir de
+# routes/api.php -- ver docs/migracion/03-produccion.md.
+#
+# Si en cambio se despliega en un VPS/Apache donde se puede fijar el
+# DocumentRoot directamente en backend-php/public/, este archivo no hace
+# falta: se usa public/.htaccess en su lugar.
+# Muchos hosts compartidos corren PHP como CGI/FastCGI, que por defecto
+# NO reenvia el header Authorization a $_SERVER -- rompe por completo la
+# autenticacion Bearer. Verificado con un Apache+CGI real: sin esto,
+# $_SERVER no tiene ningun rastro del header aunque el cliente lo mande.
+RewriteCond %{HTTP:Authorization} ^(.*)
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%1]
+CGIPassAuth On
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^(.*)$ public/index.php [QSA,L]
+
+# Nunca servir el archivo de credenciales, aunque quedara expuesto por
+# error de subida.
+<FilesMatch "\.env$">
+    Require all denied
+</FilesMatch>
