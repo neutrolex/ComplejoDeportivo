@@ -7,6 +7,7 @@ require dirname(__DIR__) . '/config/config.php';
 require dirname(__DIR__) . '/config/database.php';
 
 use App\Middleware\CorsMiddleware;
+use App\Support\HttpException;
 use App\Support\Response;
 use App\Support\Router;
 
@@ -17,6 +18,13 @@ ini_set('display_errors', '0');
 error_reporting(E_ALL);
 
 set_exception_handler(function (\Throwable $error): void {
+    // HttpException es un corte de control deliberado (401 sin token, 400
+    // de validacion, etc.), no una falla real: se responde tal cual pide,
+    // sin loguearla como error del servidor.
+    if ($error instanceof HttpException) {
+        Response::error($error->getMessage(), $error->status());
+        return;
+    }
     error_log($error->getMessage() . "\n" . $error->getTraceAsString());
     Response::error(
         APP_DEBUG ? $error->getMessage() : 'Error interno del servidor.',
