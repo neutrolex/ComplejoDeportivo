@@ -1,0 +1,13 @@
+RewriteEngine On
+
+# Si el archivo o directorio pedido existe de verdad (assets, etc.), se
+# sirve tal cual. Si no, todo pasa por index.php, que arma su propio
+# router a partir de routes/api.php.
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.php [QSA,L]
+
+# No exponer nada fuera de lo que index.php decide devolver.
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+</IfModule>
