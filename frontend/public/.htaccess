@@ -1,7 +1,7 @@
 RewriteEngine On
 
 # Las peticiones a /api/... las maneja el .htaccess de esa carpeta
-# (backend-php/.htaccess, subido como htdocs/api/ en produccion); esta
+# (backend/.htaccess, subido como htdocs/api/ en produccion); esta
 # regla las deja pasar tal cual, sin caer en el fallback de abajo.
 RewriteRule ^api/ - [L]
 

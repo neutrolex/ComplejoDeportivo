@@ -1,13 +1,13 @@
 RewriteEngine On
 
 # Estructura de produccion en hosting compartido (InfinityFree y similares,
-# sin control sobre el DocumentRoot): esta carpeta completa (backend-php/)
+# sin control sobre el DocumentRoot): esta carpeta completa (backend/)
 # se sube tal cual como htdocs/api/, y todo lo que llegue bajo /api/ pasa
 # por public/index.php, que arma su propio router a partir de
 # routes/api.php -- ver docs/migracion/03-produccion.md.
 #
 # Si en cambio se despliega en un VPS/Apache donde se puede fijar el
-# DocumentRoot directamente en backend-php/public/, este archivo no hace
+# DocumentRoot directamente en backend/public/, este archivo no hace
 # falta: se usa public/.htaccess en su lugar.
 # Muchos hosts compartidos corren PHP como CGI/FastCGI, que por defecto
 # NO reenvia el header Authorization a $_SERVER -- rompe por completo la

@@ -1,6 +1,6 @@
 RewriteEngine On
 
-# Ver backend-php/.htaccess: mismo reenvio del header Authorization para
+# Ver backend/.htaccess: mismo reenvio del header Authorization para
 # hosts que corren PHP como CGI/FastCGI.
 RewriteCond %{HTTP:Authorization} ^(.*)
 RewriteRule .* - [E=HTTP_AUTHORIZATION:%1]

@@ -13,7 +13,7 @@ htdocs/                    ← raíz del hosting
 ├── favicon.svg, ...        de frontend/dist/
 ├── .htaccess                de frontend/dist/ (copiado por Vite desde frontend/public/)
 │
-└── api/                    ← todo el contenido de backend-php/, tal cual
+└── api/                    ← todo el contenido de backend/, tal cual
     ├── .htaccess
     ├── .env                 (creado a mano en el hosting, NUNCA se sube el del repo)
     ├── config/
@@ -29,21 +29,21 @@ Dos comandos para generar lo que se sube:
 
 ```bash
 cd frontend && npm run build      # genera frontend/dist/
-# backend-php/ se sube completo tal cual, sin build
+# backend/ se sube completo tal cual, sin build
 ```
 
 ## Por qué esta estructura
 
-`backend-php/public/index.php` resuelve sus rutas con `dirname(__DIR__)` (el padre de
+`backend/public/index.php` resuelve sus rutas con `dirname(__DIR__)` (el padre de
 `public/`), así que funciona igual sin importar si `public/` es el DocumentRoot real
 (un VPS con Apache configurable) o si es una subcarpeta más dentro de `htdocs/api/`
 (InfinityFree, que no permite fijar el DocumentRoot por subcarpeta). Por eso hay dos
 `.htaccess` distintos y **solo uno de los dos hace falta según el caso**:
 
-- **`backend-php/.htaccess`** (raíz): para cuando `backend-php/` se sube completo como
+- **`backend/.htaccess`** (raíz): para cuando `backend/` se sube completo como
   `htdocs/api/` — reescribe todo hacia `public/index.php`. Es el que se usa en
   InfinityFree.
-- **`backend-php/public/.htaccess`**: para cuando el DocumentRoot del servidor apunta
+- **`backend/public/.htaccess`**: para cuando el DocumentRoot del servidor apunta
   directo a `public/` (VPS, Apache local con vhost propio). No hace falta en InfinityFree.
 
 ## Hallazgo importante: el header `Authorization` no llega a PHP en CGI/FastCGI
@@ -55,7 +55,7 @@ tiene ningún rastro de él aunque el cliente lo mande. Esto rompe silenciosamen
 autenticación Bearer (`/auth/me`, y cualquier ruta protegida, siempre devuelven 401 "No
 autenticado" aunque el token sea válido).
 
-Ambos `.htaccess` de `backend-php/` ya traen el arreglo:
+Ambos `.htaccess` de `backend/` ya traen el arreglo:
 
 ```apache
 RewriteCond %{HTTP:Authorization} ^(.*)
@@ -73,7 +73,7 @@ esté configurado cada host.
 ## Verificación realizada
 
 Se armó localmente una réplica exacta del layout de producción (`htdocs/` con el build
-real de `frontend/dist/` + `backend-php/` completo como `htdocs/api/`) y se sirvió con
+real de `frontend/dist/` + `backend/` completo como `htdocs/api/`) y se sirvió con
 Apache 2.4.68 + PHP 8.3 vía CGI (mismo mecanismo que usan los hostings compartidos, a
 diferencia del servidor embebido de PHP usado en desarrollo). Resultado:
 
@@ -102,7 +102,7 @@ del Apache+CGI usado acá.
 ## Variables de entorno en producción
 
 `htdocs/api/.env` se crea a mano en el hosting (por FTP/administrador de archivos, nunca
-se commitea) a partir de `backend-php/.env.example`:
+se commitea) a partir de `backend/.env.example`:
 
 ```
 APP_DEBUG=false
