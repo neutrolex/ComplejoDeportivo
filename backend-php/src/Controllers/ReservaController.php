@@ -6,6 +6,7 @@ namespace App\Controllers;
 
 use App\Models\Reserva;
 use App\Services\AcademiaService;
+use App\Services\DashboardService;
 use App\Services\ReservaService;
 use App\Support\HttpException;
 use App\Support\Horario;
@@ -88,6 +89,11 @@ class ReservaController
         $fecha = $_GET['fecha'] ?? null;
         self::exigirFechaValida($fecha);
         Response::json(ReservaService::resumenPagosPorFecha($fecha));
+    }
+
+    public static function dashboardFinanciero(): void
+    {
+        Response::json(DashboardService::resumen(date('Y-m-d')));
     }
 
     private static function exigirFechaValida(?string $fecha): void

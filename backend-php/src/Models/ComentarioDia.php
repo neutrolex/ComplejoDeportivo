@@ -63,6 +63,32 @@ class ComentarioDia
         ];
     }
 
+    // Igual que totalesPorFecha() pero para un rango -- dashboard.
+    public function totalesEntreFechas(string $desde, string $hasta): array
+    {
+        $stmt = obtenerConexionPDO()->prepare(
+            'SELECT COALESCE(SUM(monto_yape), 0) AS yape, COALESCE(SUM(monto_efectivo), 0) AS efectivo
+             FROM comentarios_dia WHERE fecha BETWEEN :desde AND :hasta'
+        );
+        $stmt->execute(['desde' => $desde, 'hasta' => $hasta]);
+        $fila = $stmt->fetch();
+        return [
+            'yape' => bcadd((string) $fila['yape'], '0', 2),
+            'efectivo' => bcadd((string) $fila['efectivo'], '0', 2),
+        ];
+    }
+
+    // Filas [fecha, yape, efectivo] para la serie diaria del dashboard.
+    public function porDiaEntreFechas(string $desde, string $hasta): array
+    {
+        $stmt = obtenerConexionPDO()->prepare(
+            'SELECT fecha, COALESCE(SUM(monto_yape), 0) AS yape, COALESCE(SUM(monto_efectivo), 0) AS efectivo
+             FROM comentarios_dia WHERE fecha BETWEEN :desde AND :hasta GROUP BY fecha'
+        );
+        $stmt->execute(['desde' => $desde, 'hasta' => $hasta]);
+        return $stmt->fetchAll();
+    }
+
     private static function paraSalida(array $fila): array
     {
         return [

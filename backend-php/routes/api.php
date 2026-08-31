@@ -57,6 +57,7 @@ $router->get('/reservas/', fn ($p, $u) => ReservaController::list($p, $u));
 $router->post('/reservas/', fn ($p, $u) => ReservaController::create($p, $u));
 $router->get('/reservas/adelantos-pendientes/', fn () => ReservaController::adelantosPendientes());
 $router->get('/reservas/resumen-pagos/', fn () => ReservaController::resumenPagos());
+$router->get('/reservas/dashboard-financiero/', fn () => ReservaController::dashboardFinanciero());
 $router->post('/reservas/{id}/cancelar/', fn ($p) => ReservaController::cancelar($p));
 $router->post('/reservas/{id}/ausente/', fn ($p) => ReservaController::ausente($p));
 $router->patch('/reservas/{id}/pagos/', fn ($p, $u) => ReservaController::pagos($p, $u));
