@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Banknote, Smartphone } from 'lucide-react'
-import { apiFetch } from '../api'
-import { Button } from './ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
-import { Input } from './ui/input'
+import { apiFetch } from '../../api'
+import { Button } from '../../components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog'
+import { Input } from '../../components/ui/input'
 
 export default function PagoAcademiaDialogo({ abierto, fecha, academias, comentario, onCerrar, onCreado, onActualizado }) {
   const [academiaId, setAcademiaId] = useState('')

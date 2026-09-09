@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Banknote, Smartphone, Trash2 } from 'lucide-react'
-import { apiFetch } from '../api'
-import { OPCIONES_DURACION, calcularHoraFin, etiquetaDuracion } from '../utils/duracion'
-import ConfirmDialogo from './ConfirmDialogo'
-import { Button } from './ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
-import { Input } from './ui/input'
+import { apiFetch } from '../../api'
+import { OPCIONES_DURACION, calcularHoraFin, etiquetaDuracion } from '../../utils/duracion'
+import ConfirmDialogo from '../../components/ConfirmDialogo'
+import { Button } from '../../components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog'
+import { Input } from '../../components/ui/input'
 
 function montoPorMetodo(reserva, metodo) {
   return reserva.pagos

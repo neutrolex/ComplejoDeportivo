@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Building2, Clock, EyeOff, Pencil, Plus, Trash2, User } from 'lucide-react'
-import { apiFetch } from '../api'
-import { NOMBRES_DIA } from '../utils/fecha'
+import { apiFetch } from '../../api'
+import { NOMBRES_DIA } from '../../utils/fecha'
 import AcademiaDialogo from './AcademiaDialogo'
-import ConfirmDialogo from './ConfirmDialogo'
-import { Button } from './ui/button'
+import ConfirmDialogo from '../../components/ConfirmDialogo'
+import { Button } from '../../components/ui/button'
 
 function textoHorario(horario) {
   const dia = NOMBRES_DIA[horario.dia_semana]

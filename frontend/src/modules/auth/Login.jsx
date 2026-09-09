@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { Trophy } from 'lucide-react'
-import { useAuth } from '../context/AuthContext'
-import { Button } from './ui/button'
-import { Input } from './ui/input'
+import { useAuth } from '../../context/AuthContext'
+import { Button } from '../../components/ui/button'
+import { Input } from '../../components/ui/input'
 
 export default function Login() {
   const [usuario, setUsuario] = useState('')

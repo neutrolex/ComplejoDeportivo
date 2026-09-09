@@ -80,7 +80,7 @@ class Academia
     }
 
     // Suma (o resta, con $monto negativo) al saldo de deuda de la academia --
-    // usado por ComentarioDiaController al crear/borrar un comentario
+    // usado por los servicios de deuda y comentarios al crear/borrar un comentario
     // marcado como pago de esta academia. Se hace en SQL (deuda_actual =
     // deuda_actual + :monto) en vez de leer-modificar-escribir en PHP para
     // que dos ajustes concurrentes no se pisen entre si.

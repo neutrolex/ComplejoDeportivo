@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { apiFetch } from '../api'
-import { Button } from './ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
-import { Input } from './ui/input'
+import { apiFetch } from '../../api'
+import { Button } from '../../components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog'
+import { Input } from '../../components/ui/input'
 
 export default function MarcarDeudaDialogo({ abierto, reserva, academia, onCerrar, onRegistrado }) {
   const [monto, setMonto] = useState('0.00')

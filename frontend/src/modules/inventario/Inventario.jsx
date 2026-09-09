@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Package, Pencil, Plus, Trash2 } from 'lucide-react'
-import { apiFetch } from '../api'
-import ConfirmDialogo from './ConfirmDialogo'
+import { apiFetch } from '../../api'
+import ConfirmDialogo from '../../components/ConfirmDialogo'
 import InventarioDialogo from './InventarioDialogo'
-import { Button } from './ui/button'
+import { Button } from '../../components/ui/button'
 
 function TarjetaMaterial({ material, onEditar, onEliminar }) {
   return (

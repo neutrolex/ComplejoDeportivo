@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { apiFetch } from '../api'
-import { Button } from './ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
-import { Input } from './ui/input'
+import { apiFetch } from '../../api'
+import { Button } from '../../components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog'
+import { Input } from '../../components/ui/input'
 
 export default function InventarioDialogo({ abierto, material, onCerrar, onGuardado }) {
   const [nombre, setNombre] = useState('')

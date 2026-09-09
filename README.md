@@ -24,6 +24,8 @@ frontend/          React + Vite (web pública / panel administrativo)
 database/          schema.sql (MySQL/MariaDB) + scripts de actualización incremental
 ```
 
+Ver [organización y pruebas](docs/arquitectura.md) y [orden de actualizaciones de base de datos](database/README.md).
+
 ## Stack tecnológico
 
 ### Frontend (`frontend/`)

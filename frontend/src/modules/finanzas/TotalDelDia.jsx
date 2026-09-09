@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { AlertTriangle, Calculator } from 'lucide-react'
-import { apiFetch } from '../api'
-import { Button } from './ui/button'
-import MarcarDeudaDialogo from './MarcarDeudaDialogo'
+import { apiFetch } from '../../api'
+import { Button } from '../../components/ui/button'
+import MarcarDeudaDialogo from '../reservas/MarcarDeudaDialogo'
 
 function totalPagado(reserva) {
   return reserva.pagos.reduce((acc, p) => acc + Number(p.monto), 0)

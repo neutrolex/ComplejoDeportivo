@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { NOMBRES_DIA, formatearFecha, lunesDeLaSemana, sumarDias } from '../utils/fecha'
+import { NOMBRES_DIA, formatearFecha, lunesDeLaSemana, sumarDias } from '../../utils/fecha'
 
 const NOMBRE_COMPLEJO = 'Complejo Deportivo la 7'
 const WHATSAPP_URL = 'https://wa.me/51981154002'
