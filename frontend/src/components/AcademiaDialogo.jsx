@@ -44,20 +44,25 @@ function horariosDesdeAcademia(academia) {
 
 export default function AcademiaDialogo({ abierto, academia, canchas, onCerrar, onGuardada }) {
   const [nombre, setNombre] = useState('')
+  const [tipo, setTipo] = useState('academia')
   const [color, setColor] = useState(PALETA_COLORES[0])
   const [permisoMostrar, setPermisoMostrar] = useState(true)
+  const [deudaActual, setDeudaActual] = useState('0.00')
   const [horarios, setHorarios] = useState([horarioVacio()])
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
 
   const modoEditar = Boolean(academia)
+  const esClienteFijo = tipo === 'cliente_fijo'
 
   useEffect(() => {
     if (!abierto) return
     setError('')
     setNombre(academia?.nombre || '')
+    setTipo(academia?.tipo || 'academia')
     setColor(academia?.color || PALETA_COLORES[0])
     setPermisoMostrar(academia ? academia.permiso_mostrar : true)
+    setDeudaActual(academia?.deuda_actual ?? '0.00')
     setHorarios(horariosDesdeAcademia(academia))
   }, [abierto, academia])
 
@@ -113,8 +118,10 @@ export default function AcademiaDialogo({ abierto, academia, canchas, onCerrar, 
     setGuardando(true)
     const body = {
       nombre,
+      tipo,
       color,
       permiso_mostrar: permisoMostrar,
+      deuda_actual: deudaActual || '0.00',
       horarios: horarios
         .filter((h) => h.dias.length > 0 && h.canchas.length > 0)
         .map((h) => ({ dias: h.dias, hora_inicio: h.horaInicio, hora_fin: h.horaFin, canchas: h.canchas })),
@@ -136,7 +143,11 @@ export default function AcademiaDialogo({ abierto, academia, canchas, onCerrar, 
     <Dialog open={abierto} onOpenChange={(sigueAbierto) => !sigueAbierto && onCerrar()}>
       <DialogContent className="flex max-h-[85vh] max-w-3xl flex-col gap-0 overflow-hidden">
         <DialogHeader className="shrink-0">
-          <DialogTitle>{modoEditar ? 'Editar academia' : 'Nueva academia'}</DialogTitle>
+          <DialogTitle>
+            {modoEditar
+              ? (esClienteFijo ? 'Editar cliente fijo' : 'Editar academia')
+              : (esClienteFijo ? 'Nuevo cliente fijo' : 'Nueva academia')}
+          </DialogTitle>
         </DialogHeader>
 
         {/* Solo esta seccion (los bloques de horario) crece con el contenido
@@ -145,9 +156,21 @@ export default function AcademiaDialogo({ abierto, academia, canchas, onCerrar, 
             agregar horarios nunca tape el boton de guardar. */}
         <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto py-4 pr-1">
           <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="academia-nombre">Nombre</label>
-              <Input id="academia-nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Nombre de la academia" />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="academia-nombre">Nombre</label>
+                <Input id="academia-nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Nombre" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="academia-tipo">Tipo</label>
+                <select
+                  id="academia-tipo" value={tipo} onChange={(e) => setTipo(e.target.value)}
+                  className="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                >
+                  <option value="academia">Academia</option>
+                  <option value="cliente_fijo">Cliente fijo</option>
+                </select>
+              </div>
             </div>
 
             <div className="flex flex-wrap items-start gap-4">
@@ -169,14 +192,29 @@ export default function AcademiaDialogo({ abierto, academia, canchas, onCerrar, 
                 </div>
               </div>
 
-              <label className="ml-auto flex items-center gap-2 self-stretch rounded-md border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                <input
-                  type="checkbox" checked={permisoMostrar}
-                  onChange={(e) => setPermisoMostrar(e.target.checked)}
-                  className="h-4 w-4 accent-emerald-600"
-                />
-                Mostrar en la web pública
+              {!esClienteFijo && (
+                <label className="ml-auto flex items-center gap-2 self-stretch rounded-md border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                  <input
+                    type="checkbox" checked={permisoMostrar}
+                    onChange={(e) => setPermisoMostrar(e.target.checked)}
+                    className="h-4 w-4 accent-emerald-600"
+                  />
+                  Mostrar en la web pública
+                </label>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="academia-deuda">
+                Deuda actual (S/)
               </label>
+              <Input
+                id="academia-deuda" type="number" step="0.01" min="0" className="max-w-40"
+                value={deudaActual} onChange={(e) => setDeudaActual(e.target.value)}
+              />
+              <p className="text-xs text-slate-400 dark:text-slate-500">
+                Ajusta este saldo a mano. Baja automáticamente cuando marcas un comentario del día como pago de esta academia.
+              </p>
             </div>
           </div>
 

@@ -1,24 +1,12 @@
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.egg-info/
-
-# Entornos virtuales
-venv/
-.venv/
-env/
+# PHP
+vendor/
+composer.lock
 
 # Variables de entorno / secretos
 .env
 *.env.local
 
-# Django
-backend/staticfiles/
-backend/media/
-db.sqlite3
-
-# Node / React (para cuando exista frontend/)
+# Node / React
 node_modules/
 dist/
 .vite/
@@ -28,6 +16,9 @@ dist/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Config local de herramientas de IA (puede contener API keys)
+.codex/
 
 # Worktrees locales (aislamiento de features en desarrollo)
 .worktrees/
