@@ -14,19 +14,37 @@ function montoPorMetodo(reserva, metodo) {
     .toFixed(2)
 }
 
+function montoPorMetodoYTipo(reserva, metodo, tipo) {
+  return reserva.pagos
+    .filter((p) => p.metodo === metodo && p.tipo === tipo)
+    .reduce((acc, p) => acc + Number(p.monto), 0)
+    .toFixed(2)
+}
+
+// "2026-09-06 10:23:45" -> "06/09 10:23"
+function fechaCorta(fechaHora) {
+  const [fecha, hora] = fechaHora.split(' ')
+  const [, mes, dia] = fecha.split('-')
+  return `${dia}/${mes} ${hora ? hora.slice(0, 5) : ''}`.trim()
+}
+
 export default function ReservaDialogo({ contexto, academias, onCerrar, onGuardada, onCancelada }) {
   const [cliente, setCliente] = useState('')
   const [academiaId, setAcademiaId] = useState('')
   const [duracion, setDuracion] = useState(1)
   const [yape, setYape] = useState('0.00')
   const [efectivo, setEfectivo] = useState('0.00')
+  const [yapeNuevo, setYapeNuevo] = useState('0.00')
+  const [efectivoNuevo, setEfectivoNuevo] = useState('0.00')
   const [noVino, setNoVino] = useState(false)
+  const [estadoPago, setEstadoPago] = useState('pendiente')
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
   const [confirmandoEliminar, setConfirmandoEliminar] = useState(false)
   const [eliminando, setEliminando] = useState(false)
 
   const modoEditar = contexto?.modo === 'editar'
+  const esAdelanto = modoEditar && contexto?.reserva.es_adelanto
 
   useEffect(() => {
     if (!contexto) return
@@ -35,7 +53,10 @@ export default function ReservaDialogo({ contexto, academias, onCerrar, onGuarda
       setCliente(contexto.reserva.cliente_nombre)
       setYape(montoPorMetodo(contexto.reserva, 'yape'))
       setEfectivo(montoPorMetodo(contexto.reserva, 'efectivo'))
+      setYapeNuevo(montoPorMetodoYTipo(contexto.reserva, 'yape', 'saldo'))
+      setEfectivoNuevo(montoPorMetodoYTipo(contexto.reserva, 'efectivo', 'saldo'))
       setNoVino(contexto.reserva.estado === 'ausente')
+      setEstadoPago(contexto.reserva.estado_pago || 'pendiente')
     } else {
       setCliente('')
       setAcademiaId('')
@@ -49,6 +70,11 @@ export default function ReservaDialogo({ contexto, academias, onCerrar, onGuarda
   if (!contexto) return null
 
   const total = (Number(yape) || 0) + (Number(efectivo) || 0)
+  // Solo el deposito original (tipo='adelanto') -- lo que se cobra despues
+  // (tipo='saldo') no entra aca, queda unicamente en la columna de Pago de
+  // la grilla (ver BadgesPago en PanelDisponibilidad).
+  const pagosAdelanto = contexto.reserva ? contexto.reserva.pagos.filter((p) => p.tipo === 'adelanto') : []
+  const totalPagadoAdelanto = pagosAdelanto.reduce((acc, p) => acc + Number(p.monto), 0)
 
   // Al elegir una academia ya guardada no tiene sentido pedirle a la
   // persona que ademas escriba el nombre a mano -- se autocompleta con el
@@ -69,10 +95,22 @@ export default function ReservaDialogo({ contexto, academias, onCerrar, onGuarda
     setGuardando(true)
     try {
       if (modoEditar) {
-        let actualizada = await apiFetch(`/reservas/${contexto.reserva.id}/pagos/`, {
-          method: 'PATCH',
-          body: JSON.stringify({ yape, efectivo }),
-        })
+        let actualizada
+        if (esAdelanto) {
+          // Fija el total de saldo (lo que se cobra ademas del deposito)
+          // sin tocar el deposito original -- el backend busca solo entre
+          // los pagos tipo='saldo', asi que el deposito (tipo='adelanto')
+          // nunca se pisa ni pierde su fecha_hora original.
+          actualizada = await apiFetch(`/reservas/${contexto.reserva.id}/agregar-pago/`, {
+            method: 'PATCH',
+            body: JSON.stringify({ yape: yapeNuevo, efectivo: efectivoNuevo, estado_pago: estadoPago }),
+          })
+        } else {
+          actualizada = await apiFetch(`/reservas/${contexto.reserva.id}/pagos/`, {
+            method: 'PATCH',
+            body: JSON.stringify({ yape, efectivo }),
+          })
+        }
         // "No vino" es un toggle aparte de los pagos (ver el endpoint en el
         // backend): solo se llama si el checkbox cambio respecto al estado
         // original, para no revertirlo sin querer al tocar Guardar dos veces.
@@ -189,32 +227,107 @@ export default function ReservaDialogo({ contexto, academias, onCerrar, onGuarda
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="flex flex-col gap-1.5">
-            <label className="flex items-center gap-1 text-sm font-medium text-violet-700 dark:text-violet-400" htmlFor="reserva-yape">
-              <Smartphone className="h-3.5 w-3.5" /> Yape (S/)
-            </label>
-            <Input
-              id="reserva-yape" type="number" step="0.01" min="0"
-              value={yape} onChange={(e) => setYape(e.target.value)}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="flex items-center gap-1 text-sm font-medium text-emerald-700 dark:text-emerald-400" htmlFor="reserva-efectivo">
-              <Banknote className="h-3.5 w-3.5" /> Efectivo (S/)
-            </label>
-            <Input
-              id="reserva-efectivo" type="number" step="0.01" min="0"
-              value={efectivo} onChange={(e) => setEfectivo(e.target.value)}
-            />
-          </div>
-        </div>
-        <p className="text-xs text-slate-400 dark:text-slate-500">Si pagó en dos partes, completa ambos campos.</p>
+        {esAdelanto ? (
+          <>
+            <div className="flex flex-col gap-1.5 rounded-md bg-slate-50 p-3 text-sm dark:bg-slate-800">
+              <span className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                Depósito del adelanto
+              </span>
+              {pagosAdelanto.length === 0 ? (
+                <p className="text-slate-400 dark:text-slate-500">Ninguno todavía.</p>
+              ) : (
+                <ul className="flex flex-col gap-1">
+                  {pagosAdelanto.map((p) => (
+                    <li key={p.id} className="flex items-center justify-between gap-2 text-slate-700 dark:text-slate-300">
+                      <span className="text-xs text-slate-400 dark:text-slate-500">{fechaCorta(p.fecha_hora)}</span>
+                      <span>{p.metodo === 'yape' ? 'Yape' : 'Efectivo'}</span>
+                      <span className="font-semibold">S/{Number(p.monto).toFixed(2)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div className="flex items-center justify-between border-t border-slate-200 pt-1.5 font-medium dark:border-slate-700">
+                <span>Total depositado</span>
+                <span>S/{totalPagadoAdelanto.toFixed(2)}</span>
+              </div>
+              <p className="text-xs text-slate-400 dark:text-slate-500">
+                Es fijo: no cambia aunque se cobre más después.
+              </p>
+            </div>
 
-        <div className="flex items-center justify-between rounded-md bg-slate-50 px-3 py-2 text-sm font-medium dark:bg-slate-800">
-          <span>Total</span>
-          <span>S/{total.toFixed(2)}</span>
-        </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label className="flex items-center gap-1 text-sm font-medium text-violet-700 dark:text-violet-400" htmlFor="reserva-yape-nuevo">
+                  <Smartphone className="h-3.5 w-3.5" /> Yape (S/)
+                </label>
+                <Input
+                  id="reserva-yape-nuevo" type="number" step="0.01" min="0"
+                  value={yapeNuevo} onChange={(e) => setYapeNuevo(e.target.value)}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="flex items-center gap-1 text-sm font-medium text-emerald-700 dark:text-emerald-400" htmlFor="reserva-efectivo-nuevo">
+                  <Banknote className="h-3.5 w-3.5" /> Efectivo (S/)
+                </label>
+                <Input
+                  id="reserva-efectivo-nuevo" type="number" step="0.01" min="0"
+                  value={efectivoNuevo} onChange={(e) => setEfectivoNuevo(e.target.value)}
+                />
+              </div>
+            </div>
+            <p className="text-xs text-slate-400 dark:text-slate-500">
+              Total pagado por cada método además del depósito — no lo que se paga hoy, el total acumulado. Si ya habían 30 en Efectivo y no cambió nada, déjalo en 30 (no se vuelve a sumar).
+            </p>
+          </>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label className="flex items-center gap-1 text-sm font-medium text-violet-700 dark:text-violet-400" htmlFor="reserva-yape">
+                  <Smartphone className="h-3.5 w-3.5" /> Yape (S/)
+                </label>
+                <Input
+                  id="reserva-yape" type="number" step="0.01" min="0"
+                  value={yape} onChange={(e) => setYape(e.target.value)}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="flex items-center gap-1 text-sm font-medium text-emerald-700 dark:text-emerald-400" htmlFor="reserva-efectivo">
+                  <Banknote className="h-3.5 w-3.5" /> Efectivo (S/)
+                </label>
+                <Input
+                  id="reserva-efectivo" type="number" step="0.01" min="0"
+                  value={efectivo} onChange={(e) => setEfectivo(e.target.value)}
+                />
+              </div>
+            </div>
+            <p className="text-xs text-slate-400 dark:text-slate-500">
+              Si pagó en dos partes (Yape y Efectivo), completa ambos campos con el total de cada uno.
+            </p>
+
+            <div className="flex items-center justify-between rounded-md bg-slate-50 px-3 py-2 text-sm font-medium dark:bg-slate-800">
+              <span>Total</span>
+              <span>S/{total.toFixed(2)}</span>
+            </div>
+          </>
+        )}
+
+        {esAdelanto && (
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="reserva-estado-pago">
+              Estado de pago
+            </label>
+            <select
+              id="reserva-estado-pago" value={estadoPago} onChange={(e) => setEstadoPago(e.target.value)}
+              className="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+            >
+              <option value="pendiente">Pendiente</option>
+              <option value="pagado">Pagado</option>
+              <option value="falta">Falta</option>
+            </select>
+            <p className="text-xs text-slate-400 dark:text-slate-500">Lo eliges tú — la app no lo calcula.</p>
+          </div>
+        )}
 
         {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 

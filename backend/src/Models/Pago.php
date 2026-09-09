@@ -27,6 +27,21 @@ class Pago
         return $fila === false ? null : $fila;
     }
 
+    // Igual que buscarUltimoPorReservaYMetodo pero limitado a un tipo --
+    // en un adelanto hace falta poder actualizar el saldo (tipo='saldo')
+    // sin arriesgarse a encontrar y pisar el deposito original
+    // (tipo='adelanto') del mismo metodo.
+    public function buscarUltimoPorReservaMetodoYTipo(int $reservaId, string $metodo, string $tipo): ?array
+    {
+        $stmt = obtenerConexionPDO()->prepare(
+            'SELECT id, monto FROM pagos WHERE reserva_id = :reserva_id AND metodo = :metodo AND tipo = :tipo
+             ORDER BY fecha_hora DESC LIMIT 1'
+        );
+        $stmt->execute(['reserva_id' => $reservaId, 'metodo' => $metodo, 'tipo' => $tipo]);
+        $fila = $stmt->fetch();
+        return $fila === false ? null : $fila;
+    }
+
     public function crear(int $reservaId, string $metodo, string $monto, string $tipo, int $registradoPorId): void
     {
         $stmt = obtenerConexionPDO()->prepare(

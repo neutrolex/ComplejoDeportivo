@@ -13,6 +13,7 @@ use App\Controllers\AuthController;
 use App\Controllers\CanchaController;
 use App\Controllers\ComentarioDiaController;
 use App\Controllers\DisponibilidadPublicaController;
+use App\Controllers\InventarioController;
 use App\Controllers\ReservaController;
 use App\Controllers\TarifaController;
 use App\Controllers\UsuarioController;
@@ -60,7 +61,9 @@ $router->get('/reservas/resumen-pagos/', fn () => ReservaController::resumenPago
 $router->get('/reservas/dashboard-financiero/', fn () => ReservaController::dashboardFinanciero());
 $router->post('/reservas/{id}/cancelar/', fn ($p) => ReservaController::cancelar($p));
 $router->post('/reservas/{id}/ausente/', fn ($p) => ReservaController::ausente($p));
+$router->post('/reservas/{id}/marcar-deuda/', fn ($p, $u) => ReservaController::marcarDeuda($p, $u));
 $router->patch('/reservas/{id}/pagos/', fn ($p, $u) => ReservaController::pagos($p, $u));
+$router->patch('/reservas/{id}/agregar-pago/', fn ($p, $u) => ReservaController::agregarPago($p, $u));
 
 $router->get('/academias/', fn () => AcademiaController::list());
 $router->post('/academias/', fn () => AcademiaController::create());
@@ -69,4 +72,10 @@ $router->delete('/academias/{id}/', fn ($p) => AcademiaController::destroy($p));
 
 $router->get('/comentarios-dia/', fn () => ComentarioDiaController::list());
 $router->post('/comentarios-dia/', fn ($p, $u) => ComentarioDiaController::create($p, $u));
+$router->patch('/comentarios-dia/{id}/', fn ($p) => ComentarioDiaController::update($p));
 $router->delete('/comentarios-dia/{id}/', fn ($p) => ComentarioDiaController::destroy($p));
+
+$router->get('/inventario/', fn () => InventarioController::list());
+$router->post('/inventario/', fn () => InventarioController::create());
+$router->patch('/inventario/{id}/', fn ($p) => InventarioController::update($p));
+$router->delete('/inventario/{id}/', fn ($p) => InventarioController::destroy($p));

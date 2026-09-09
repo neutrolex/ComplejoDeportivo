@@ -17,6 +17,8 @@ const badgeVariants = cva(
         efectivo: 'text-emerald-600 dark:text-emerald-400',
         pendiente: 'text-amber-600 dark:text-amber-400',
         ausente: 'text-slate-500 dark:text-slate-400',
+        pagado: 'text-emerald-600 dark:text-emerald-400',
+        falta: 'text-red-600 dark:text-red-400',
       },
     },
     defaultVariants: { variant: 'default' },

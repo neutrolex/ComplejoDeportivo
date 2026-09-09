@@ -89,8 +89,18 @@ DROP TABLE IF EXISTS `academias`;
 CREATE TABLE `academias` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `nombre` VARCHAR(150) NOT NULL,
+  -- 'cliente_fijo' = mismo mecanismo de horario recurrente que una
+  -- academia (color, horarios, deuda), pero nunca puede mostrarse en la
+  -- web publica -- ver AcademiaService::validarEntrada, que fuerza
+  -- permiso_mostrar=false para este tipo sin importar lo que mande el form.
+  `tipo` ENUM('academia', 'cliente_fijo') NOT NULL DEFAULT 'academia',
   `permiso_mostrar` TINYINT(1) NOT NULL DEFAULT 1,
   `color` VARCHAR(7) NOT NULL DEFAULT '#7c3aed',
+  -- Saldo que la academia debe hoy. Se ajusta a mano desde el panel; se
+  -- resta solo cuando un comentario del dia se marca como pago de esta
+  -- academia (ver comentarios_dia.academia_id). Puede quedar en negativo
+  -- si se registra un pago mayor al saldo (academia a favor).
+  `deuda_actual` DECIMAL(7,2) NOT NULL DEFAULT 0.00,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -142,7 +152,11 @@ CREATE TABLE `reservas` (
   `fecha` DATE NOT NULL,
   `hora_inicio` TIME NOT NULL,
   `hora_fin` TIME NOT NULL,
-  `estado` ENUM('confirmada', 'cancelada', 'completada', 'ausente')
+  -- 'debe' = se registro como deuda de la academia (ver
+  -- ReservaController::marcarDeuda) en vez de cobrarse ese dia: no cuenta
+  -- como 'pendiente' de cobro normal porque el monto ya se sumo a
+  -- academias.deuda_actual y quedo anotado en un comentario del dia.
+  `estado` ENUM('confirmada', 'cancelada', 'completada', 'ausente', 'debe')
     NOT NULL DEFAULT 'confirmada',
   `precio_total` DECIMAL(7,2) NOT NULL,
   `creado_en` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -155,6 +169,10 @@ CREATE TABLE `reservas` (
   -- True solo si nació del flujo "Agregar adelanto"; no se modifica después
   -- de creada (mantiene la celda negra en la grilla aunque se complete el pago).
   `es_adelanto` TINYINT(1) NOT NULL DEFAULT 0,
+  -- Solo tiene sentido en un adelanto: el precio de la cancha puede variar
+  -- (negociacion, horario, descuentos) asi que la app no calcula "cuanto
+  -- falta" -- la persona a cargo decide y marca el estado a mano.
+  `estado_pago` ENUM('pendiente', 'pagado', 'falta') NOT NULL DEFAULT 'pendiente',
   PRIMARY KEY (`id`),
   KEY `idx_reservas_fecha` (`fecha`),
   KEY `idx_reservas_fecha_estado` (`fecha`, `estado`),
@@ -219,12 +237,40 @@ CREATE TABLE `comentarios_dia` (
   `monto_efectivo` DECIMAL(7,2) NOT NULL DEFAULT 0.00,
   `creado_en` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `creado_por_id` BIGINT UNSIGNED NOT NULL,
+  -- NULL = comentario normal. Si se completa, el comentario representa un
+  -- pago de esta academia y su monto (yape+efectivo) se resta de
+  -- academias.deuda_actual al crear el comentario (y se repone si se borra).
+  `academia_id` BIGINT UNSIGNED NULL,
+  -- Foto de academias.deuda_actual justo despues de aplicar este pago (solo
+  -- si academia_id no es NULL) -- permite mostrar "Debe S/X" junto al pago
+  -- en el historial del dia sin depender del saldo actual (que sigue
+  -- cambiando con pagos posteriores).
+  `academia_deuda_resultante` DECIMAL(7,2) NULL,
+  -- False solo en la nota automatica de "se registro un adelanto" (ver
+  -- ReservaService::crearReserva): esa nota SI lleva el monto real (para
+  -- mostrar el badge sin que haya que editarla a mano), pero ese dinero ya
+  -- se cuenta por su Pago real -- sumarlo tambien aca lo duplicaria en el
+  -- total del dia.
+  `cuenta_en_total` TINYINT(1) NOT NULL DEFAULT 1,
   PRIMARY KEY (`id`),
   KEY `idx_comentarios_dia_fecha` (`fecha`),
   CONSTRAINT `chk_comentarios_dia_montos`
     CHECK (`monto_yape` >= 0 AND `monto_efectivo` >= 0),
   CONSTRAINT `fk_comentarios_dia_creado_por`
-    FOREIGN KEY (`creado_por_id`) REFERENCES `usuarios_internos` (`id`) ON DELETE RESTRICT
+    FOREIGN KEY (`creado_por_id`) REFERENCES `usuarios_internos` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `fk_comentarios_dia_academia`
+    FOREIGN KEY (`academia_id`) REFERENCES `academias` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ----------------------------------------------------------------------------
+-- inventario
+-- ----------------------------------------------------------------------------
+DROP TABLE IF EXISTS `inventario`;
+CREATE TABLE `inventario` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `nombre` VARCHAR(150) NOT NULL,
+  `cantidad` INT UNSIGNED NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;

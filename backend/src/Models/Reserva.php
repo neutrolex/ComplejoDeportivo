@@ -12,7 +12,7 @@ class Reserva
     {
         $stmt = obtenerConexionPDO()->prepare(
             "SELECT id, modalidad, cliente_nombre, fecha, hora_inicio, hora_fin, estado, precio_total,
-                    academia_id, es_adelanto
+                    academia_id, es_adelanto, estado_pago
              FROM reservas
              WHERE fecha = :fecha AND estado != 'cancelada'
              ORDER BY fecha DESC, hora_inicio DESC"
@@ -25,7 +25,7 @@ class Reserva
     {
         $stmt = obtenerConexionPDO()->prepare(
             'SELECT id, modalidad, cliente_nombre, fecha, hora_inicio, hora_fin, estado, precio_total,
-                    academia_id, academia_horario_id, asignada_por_id, es_adelanto
+                    academia_id, academia_horario_id, asignada_por_id, es_adelanto, estado_pago
              FROM reservas WHERE id = :id'
         );
         $stmt->execute(['id' => $id]);
@@ -54,6 +54,7 @@ class Reserva
             'pagos' => (new Pago())->listarPorReserva((int) $fila['id']),
             'academia' => $academia,
             'es_adelanto' => (bool) $fila['es_adelanto'],
+            'estado_pago' => $fila['estado_pago'],
         ];
     }
 
@@ -105,6 +106,16 @@ class Reserva
         obtenerConexionPDO()
             ->prepare('UPDATE reservas SET estado = :estado WHERE id = :id')
             ->execute(['id' => $id, 'estado' => $estado]);
+    }
+
+    // Estado de pago manual (Pendiente/Pagado/Falta) de un adelanto -- lo
+    // elige la persona a cargo, no se calcula a partir de los montos
+    // cargados (ver comentario de la columna en el schema).
+    public function actualizarEstadoPago(int $id, string $estadoPago): void
+    {
+        obtenerConexionPDO()
+            ->prepare('UPDATE reservas SET estado_pago = :estado_pago WHERE id = :id')
+            ->execute(['id' => $id, 'estado_pago' => $estadoPago]);
     }
 
     // Equivalente a canchas_ocupadas(): de $canchaIds, las que ya tienen
@@ -162,7 +173,7 @@ class Reserva
     {
         $stmt = obtenerConexionPDO()->query(
             "SELECT id, modalidad, cliente_nombre, fecha, hora_inicio, hora_fin, estado, precio_total,
-                    academia_id, es_adelanto
+                    academia_id, es_adelanto, estado_pago
              FROM reservas
              WHERE es_adelanto = 1 AND estado != 'cancelada'
              ORDER BY fecha, hora_inicio"

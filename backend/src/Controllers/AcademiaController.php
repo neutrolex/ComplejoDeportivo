@@ -24,7 +24,7 @@ class AcademiaController
         $pdo = obtenerConexionPDO();
         $pdo->beginTransaction();
         try {
-            $id = $academiaModelo->crear($datos['nombre'], $datos['color'], $datos['permiso_mostrar']);
+            $id = $academiaModelo->crear($datos['nombre'], $datos['tipo'], $datos['color'], $datos['permiso_mostrar'], $datos['deuda_actual']);
             AcademiaService::sincronizarHorarios($id, $datos['horarios']);
             $pdo->commit();
         } catch (\Throwable $error) {
@@ -48,7 +48,7 @@ class AcademiaController
         $pdo = obtenerConexionPDO();
         $pdo->beginTransaction();
         try {
-            $academiaModelo->actualizar($id, $datos['nombre'], $datos['color'], $datos['permiso_mostrar']);
+            $academiaModelo->actualizar($id, $datos['nombre'], $datos['tipo'], $datos['color'], $datos['permiso_mostrar'], $datos['deuda_actual']);
             AcademiaService::sincronizarHorarios($id, $datos['horarios']);
             $pdo->commit();
         } catch (\Throwable $error) {

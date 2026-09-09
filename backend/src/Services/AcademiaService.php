@@ -29,12 +29,28 @@ class AcademiaService
             throw new HttpException('nombre es obligatorio (maximo 150 caracteres).', 400);
         }
 
+        $tipo = (string) ($datos['tipo'] ?? 'academia');
+        if (!in_array($tipo, ['academia', 'cliente_fijo'], true)) {
+            throw new HttpException("tipo invalido: debe ser 'academia' o 'cliente_fijo'.", 400);
+        }
+
         $color = (string) ($datos['color'] ?? '#7c3aed');
         if ($color === '' || mb_strlen($color) > 7) {
             throw new HttpException('color invalido (maximo 7 caracteres).', 400);
         }
 
-        $permisoMostrar = array_key_exists('permiso_mostrar', $datos) ? (bool) $datos['permiso_mostrar'] : true;
+        // Un cliente fijo nunca se muestra en la web publica -- se fuerza
+        // aca (no solo se oculta el checkbox en el form) para que no haya
+        // forma de exponerlo aunque alguien mande permiso_mostrar=true a mano.
+        $permisoMostrar = $tipo === 'cliente_fijo'
+            ? false
+            : (array_key_exists('permiso_mostrar', $datos) ? (bool) $datos['permiso_mostrar'] : true);
+
+        $deudaTexto = (string) ($datos['deuda_actual'] ?? '0.00');
+        if (!preg_match('/^-?\d+(\.\d{1,2})?$/', $deudaTexto)) {
+            throw new HttpException('deuda_actual debe ser un numero valido (hasta 2 decimales).', 400);
+        }
+        $deudaActual = bcadd($deudaTexto, '0', 2);
 
         $horariosEntrada = is_array($datos['horarios'] ?? null) ? $datos['horarios'] : [];
         $horariosValidados = array_map(
@@ -44,8 +60,10 @@ class AcademiaService
 
         return [
             'nombre' => $nombre,
+            'tipo' => $tipo,
             'color' => $color,
             'permiso_mostrar' => $permisoMostrar,
+            'deuda_actual' => $deudaActual,
             'horarios' => $horariosValidados,
         ];
     }

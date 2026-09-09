@@ -9,7 +9,7 @@ class Academia
     public function listarConHorarios(): array
     {
         $academias = obtenerConexionPDO()
-            ->query('SELECT id, nombre, color, permiso_mostrar FROM academias ORDER BY nombre')
+            ->query('SELECT id, nombre, tipo, color, permiso_mostrar, deuda_actual FROM academias ORDER BY nombre')
             ->fetchAll();
 
         $horarioModelo = new AcademiaHorario();
@@ -17,8 +17,10 @@ class Academia
             return [
                 'id' => (int) $fila['id'],
                 'nombre' => $fila['nombre'],
+                'tipo' => $fila['tipo'],
                 'color' => $fila['color'],
                 'permiso_mostrar' => (bool) $fila['permiso_mostrar'],
+                'deuda_actual' => $fila['deuda_actual'],
                 'horarios' => $horarioModelo->listarPorAcademia((int) $fila['id']),
             ];
         }, $academias);
@@ -27,7 +29,7 @@ class Academia
     public function buscarPorId(int $id): ?array
     {
         $stmt = obtenerConexionPDO()->prepare(
-            'SELECT id, nombre, color, permiso_mostrar FROM academias WHERE id = :id'
+            'SELECT id, nombre, tipo, color, permiso_mostrar, deuda_actual FROM academias WHERE id = :id'
         );
         $stmt->execute(['id' => $id]);
         $fila = $stmt->fetch();
@@ -38,38 +40,56 @@ class Academia
     // Reserva sin traer permiso_mostrar ni horarios.
     public function buscarResumen(int $id): ?array
     {
-        $stmt = obtenerConexionPDO()->prepare('SELECT id, nombre, color FROM academias WHERE id = :id');
+        $stmt = obtenerConexionPDO()->prepare('SELECT id, nombre, tipo, color FROM academias WHERE id = :id');
         $stmt->execute(['id' => $id]);
         $fila = $stmt->fetch();
         return $fila === false ? null : [
-            'id' => (int) $fila['id'], 'nombre' => $fila['nombre'], 'color' => $fila['color'],
+            'id' => (int) $fila['id'], 'nombre' => $fila['nombre'], 'tipo' => $fila['tipo'], 'color' => $fila['color'],
         ];
     }
 
-    public function crear(string $nombre, string $color, bool $permisoMostrar): int
+    public function crear(string $nombre, string $tipo, string $color, bool $permisoMostrar, string $deudaActual): int
     {
         $pdo = obtenerConexionPDO();
         $stmt = $pdo->prepare(
-            'INSERT INTO academias (nombre, color, permiso_mostrar) VALUES (:nombre, :color, :permiso_mostrar)'
+            'INSERT INTO academias (nombre, tipo, color, permiso_mostrar, deuda_actual)
+             VALUES (:nombre, :tipo, :color, :permiso_mostrar, :deuda_actual)'
         );
-        $stmt->execute(['nombre' => $nombre, 'color' => $color, 'permiso_mostrar' => $permisoMostrar ? 1 : 0]);
+        $stmt->execute([
+            'nombre' => $nombre, 'tipo' => $tipo, 'color' => $color, 'permiso_mostrar' => $permisoMostrar ? 1 : 0,
+            'deuda_actual' => $deudaActual,
+        ]);
         return (int) $pdo->lastInsertId();
     }
 
-    public function actualizar(int $id, string $nombre, string $color, bool $permisoMostrar): void
+    public function actualizar(int $id, string $nombre, string $tipo, string $color, bool $permisoMostrar, string $deudaActual): void
     {
         $stmt = obtenerConexionPDO()->prepare(
-            'UPDATE academias SET nombre = :nombre, color = :color, permiso_mostrar = :permiso_mostrar
-             WHERE id = :id'
+            'UPDATE academias SET nombre = :nombre, tipo = :tipo, color = :color, permiso_mostrar = :permiso_mostrar,
+             deuda_actual = :deuda_actual WHERE id = :id'
         );
         $stmt->execute([
-            'id' => $id, 'nombre' => $nombre, 'color' => $color, 'permiso_mostrar' => $permisoMostrar ? 1 : 0,
+            'id' => $id, 'nombre' => $nombre, 'tipo' => $tipo, 'color' => $color,
+            'permiso_mostrar' => $permisoMostrar ? 1 : 0, 'deuda_actual' => $deudaActual,
         ]);
     }
 
     public function eliminar(int $id): void
     {
         obtenerConexionPDO()->prepare('DELETE FROM academias WHERE id = :id')->execute(['id' => $id]);
+    }
+
+    // Suma (o resta, con $monto negativo) al saldo de deuda de la academia --
+    // usado por ComentarioDiaController al crear/borrar un comentario
+    // marcado como pago de esta academia. Se hace en SQL (deuda_actual =
+    // deuda_actual + :monto) en vez de leer-modificar-escribir en PHP para
+    // que dos ajustes concurrentes no se pisen entre si.
+    public function ajustarDeuda(int $id, string $monto): void
+    {
+        $stmt = obtenerConexionPDO()->prepare(
+            'UPDATE academias SET deuda_actual = deuda_actual + :monto WHERE id = :id'
+        );
+        $stmt->execute(['id' => $id, 'monto' => $monto]);
     }
 
     // Respuesta completa (AcademiaSerializer) despues de crear/editar: lee
@@ -80,8 +100,10 @@ class Academia
         return [
             'id' => (int) $academia['id'],
             'nombre' => $academia['nombre'],
+            'tipo' => $academia['tipo'],
             'color' => $academia['color'],
             'permiso_mostrar' => (bool) $academia['permiso_mostrar'],
+            'deuda_actual' => $academia['deuda_actual'],
             'horarios' => (new AcademiaHorario())->listarPorAcademia($id),
         ];
     }

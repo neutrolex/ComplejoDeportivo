@@ -7,6 +7,7 @@ import PanelDisponibilidad from './components/PanelDisponibilidad'
 import HorariosPublicos from './components/HorariosPublicos'
 import DashboardFinanciero from './components/DashboardFinanciero'
 import Academias from './components/Academias'
+import Inventario from './components/Inventario'
 
 function PanelConLogin() {
   const { autenticado } = useAuth()
@@ -50,6 +51,20 @@ function AcademiasConLogin() {
   )
 }
 
+function InventarioConLogin() {
+  const { autenticado } = useAuth()
+
+  if (!autenticado) {
+    return <Login />
+  }
+
+  return (
+    <PanelLayout>
+      <Inventario />
+    </PanelLayout>
+  )
+}
+
 function App() {
   return (
     <ThemeProvider>
@@ -58,7 +73,8 @@ function App() {
           <Routes>
             <Route path="/horarios" element={<HorariosPublicos />} />
             <Route path="/dashboard" element={<DashboardConLogin />} />
-            <Route path="/academias" element={<AcademiasConLogin />} />
+            <Route path="/horarios-fijos" element={<AcademiasConLogin />} />
+            <Route path="/inventario" element={<InventarioConLogin />} />
             <Route path="/" element={<PanelConLogin />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

@@ -1,16 +1,26 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { apiFetch } from '../api'
 import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
 import { Input } from './ui/input'
 import { Textarea } from './ui/textarea'
 
-export default function ComentarioDialogo({ abierto, fecha, onCerrar, onCreado }) {
+export default function ComentarioDialogo({ abierto, fecha, comentario, onCerrar, onCreado, onActualizado }) {
   const [texto, setTexto] = useState('')
   const [montoYape, setMontoYape] = useState('')
   const [montoEfectivo, setMontoEfectivo] = useState('')
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
+
+  const modoEditar = Boolean(comentario)
+
+  useEffect(() => {
+    if (!abierto) return
+    setError('')
+    setTexto(comentario?.texto || '')
+    setMontoYape(comentario && Number(comentario.monto_yape) > 0 ? String(comentario.monto_yape) : '')
+    setMontoEfectivo(comentario && Number(comentario.monto_efectivo) > 0 ? String(comentario.monto_efectivo) : '')
+  }, [abierto, comentario])
 
   async function guardar() {
     if (!texto.trim()) {
@@ -19,14 +29,15 @@ export default function ComentarioDialogo({ abierto, fecha, onCerrar, onCreado }
     }
     setError('')
     setGuardando(true)
+    const body = { fecha, texto, monto_yape: montoYape || '0.00', monto_efectivo: montoEfectivo || '0.00' }
     try {
-      const nuevo = await apiFetch('/comentarios-dia/', {
-        method: 'POST',
-        body: JSON.stringify({
-          fecha, texto, monto_yape: montoYape || '0.00', monto_efectivo: montoEfectivo || '0.00',
-        }),
-      })
-      onCreado(nuevo)
+      if (modoEditar) {
+        const actualizado = await apiFetch(`/comentarios-dia/${comentario.id}/`, { method: 'PATCH', body: JSON.stringify(body) })
+        onActualizado(actualizado)
+      } else {
+        const nuevo = await apiFetch('/comentarios-dia/', { method: 'POST', body: JSON.stringify(body) })
+        onCreado(nuevo)
+      }
       setTexto('')
       setMontoYape('')
       setMontoEfectivo('')
@@ -42,7 +53,7 @@ export default function ComentarioDialogo({ abierto, fecha, onCerrar, onCreado }
     <Dialog open={abierto} onOpenChange={(sigueAbierto) => !sigueAbierto && onCerrar()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Agregar comentario — {fecha}</DialogTitle>
+          <DialogTitle>{modoEditar ? 'Editar comentario' : 'Agregar comentario'} — {fecha}</DialogTitle>
         </DialogHeader>
 
         <div className="flex flex-col gap-1.5">

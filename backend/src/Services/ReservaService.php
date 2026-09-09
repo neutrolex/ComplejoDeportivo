@@ -154,6 +154,29 @@ class ReservaService
                 self::guardarPago($reservaId, 'yape', $datos['yape'], $asignadaPorId, $tipoPago);
             }
 
+            // Nota informativa en las Observaciones de HOY (el dia en que se
+            // registra el adelanto, no el dia en que se juega -- la reserva
+            // en si ya aparece sola en la grilla de ese otro dia). Lleva el
+            // monto real (para que el badge de Yape/Efectivo salga solo, sin
+            // editarla a mano) pero con cuenta_en_total=false: ese dinero ya
+            // se cuenta por el Pago recien creado (fecha_hora = ahora);
+            // sumarlo tambien aca duplicaria el total del dia.
+            if ($datos['es_adelanto']) {
+                $montoPartes = [];
+                if (bccomp($datos['yape'], '0', 2) > 0) {
+                    $montoPartes[] = "S/{$datos['yape']} Yape";
+                }
+                if (bccomp($datos['efectivo'], '0', 2) > 0) {
+                    $montoPartes[] = "S/{$datos['efectivo']} Efectivo";
+                }
+                $montoTexto = $montoPartes === [] ? 'sin monto' : implode(' + ', $montoPartes);
+                (new ComentarioDia())->crear(
+                    date('Y-m-d'),
+                    "Adelanto de {$datos['cliente_nombre']} — {$montoTexto} — juega el {$datos['fecha']} a las {$datos['hora_inicio']}.",
+                    $datos['yape'], $datos['efectivo'], $asignadaPorId, null, null, false
+                );
+            }
+
             $pdo->commit();
         } catch (\Throwable $error) {
             $pdo->rollBack();
@@ -185,6 +208,32 @@ class ReservaService
         }
 
         $modelo->crear($reservaId, $metodo, $monto, $tipo, $usuarioId);
+    }
+
+    // Upsert igual que guardarPago(), pero buscando SOLO entre los pagos
+    // tipo='saldo' de esta reserva -- asi el saldo que se completa en un
+    // adelanto se puede editar (mostrar lo ya cobrado, corregirlo) sin
+    // arriesgarse a encontrar y pisar el deposito original (tipo='adelanto'
+    // del mismo metodo, que tiene que conservar su fecha_hora para seguir
+    // contando en el dia en que realmente se cobro).
+    public static function actualizarSaldo(int $reservaId, string $metodo, string $monto, int $usuarioId): void
+    {
+        $modelo = new Pago();
+        $existente = $modelo->buscarUltimoPorReservaMetodoYTipo($reservaId, $metodo, 'saldo');
+
+        if (bccomp($monto, '0', 2) <= 0) {
+            if ($existente !== null) {
+                $modelo->eliminar((int) $existente['id']);
+            }
+            return;
+        }
+
+        if ($existente !== null) {
+            $modelo->actualizarMontoYTipo((int) $existente['id'], $monto, 'saldo', $usuarioId);
+            return;
+        }
+
+        $modelo->crear($reservaId, $metodo, $monto, 'saldo', $usuarioId);
     }
 
     public static function resumenPagosPorFecha(string $fecha): array
