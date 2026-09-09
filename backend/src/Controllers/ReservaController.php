@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
-use App\Models\Academia;
-use App\Models\ComentarioDia;
 use App\Models\Reserva;
 use App\Services\AcademiaService;
 use App\Services\DashboardService;
+use App\Services\DeudaService;
 use App\Services\ReservaService;
 use App\Support\HttpException;
 use App\Support\Horario;
@@ -61,51 +60,9 @@ class ReservaController
         Response::json((new Reserva())->listarAdelantosPendientes());
     }
 
-    // La academia de esta reserva no pago hoy: en vez de dejarla "pendiente"
-    // de cobro para siempre, se registra como deuda -- el monto se suma a
-    // academias.deuda_actual (Pago de academia despues la va bajando) y
-    // queda anotado en un comentario del dia, sin afectar los totales de
-    // Yape/Efectivo porque no es dinero que realmente haya entrado hoy.
     public static function marcarDeuda(array $parametros, array $usuario): void
     {
-        $modelo = new Reserva();
-        $reserva = self::obtenerOFallar($modelo, (int) $parametros['id']);
-
-        if ($reserva['academia_id'] === null) {
-            throw new HttpException('Esta reserva no tiene una academia asociada.', 400);
-        }
-
-        $datos = self::leerJson();
-        if (!is_numeric($datos['monto'] ?? null) || (float) $datos['monto'] <= 0) {
-            throw new HttpException('monto debe ser un numero mayor a 0.', 400);
-        }
-        $monto = bcadd((string) $datos['monto'], '0', 2);
-
-        $academiaModelo = new Academia();
-        $academia = $academiaModelo->buscarPorId((int) $reserva['academia_id']);
-        if ($academia === null) {
-            throw new HttpException('La academia de esta reserva ya no existe.', 404);
-        }
-
-        $pdo = obtenerConexionPDO();
-        $pdo->beginTransaction();
-        try {
-            $modelo->actualizarEstado((int) $reserva['id'], 'debe');
-            $academiaModelo->ajustarDeuda((int) $academia['id'], $monto);
-            (new ComentarioDia())->crear(
-                $reserva['fecha'], "Deuda registrada: {$academia['nombre']} debe S/{$monto} del día.",
-                '0.00', '0.00', (int) $usuario['id'], null
-            );
-            $pdo->commit();
-        } catch (\Throwable $error) {
-            $pdo->rollBack();
-            throw $error;
-        }
-
-        Response::json([
-            'reserva' => $modelo->paraSalida($modelo->buscarPorId((int) $reserva['id'])),
-            'academia' => $academiaModelo->conAcademiaFormateada((int) $academia['id']),
-        ]);
+        Response::json(DeudaService::marcarDeuda((int) $parametros['id'], self::leerJson(), (int) $usuario['id']));
     }
 
     public static function pagos(array $parametros, array $usuario): void

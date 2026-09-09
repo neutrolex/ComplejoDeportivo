@@ -74,7 +74,7 @@ class ComentarioDia
         return $fila === false ? null : self::paraSalida($fila);
     }
 
-    // Version cruda (sin JOIN) para uso interno del controller antes de
+    // Version cruda (sin JOIN) para uso interno del servicio antes de
     // borrar/editar: solo necesita saber si tenia academia_id y los montos
     // para reponer/reajustar la deuda.
     public function buscarCrudoPorId(int $id): ?array

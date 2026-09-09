@@ -1,68 +1,17 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { ThemeProvider } from './context/ThemeContext'
-import Login from './components/Login'
+import Login from './modules/auth/Login'
 import PanelLayout from './components/PanelLayout'
-import PanelDisponibilidad from './components/PanelDisponibilidad'
-import HorariosPublicos from './components/HorariosPublicos'
-import DashboardFinanciero from './components/DashboardFinanciero'
-import Academias from './components/Academias'
-import Inventario from './components/Inventario'
+import PanelDisponibilidad from './modules/reservas/PanelDisponibilidad'
+import HorariosPublicos from './modules/disponibilidad/HorariosPublicos'
+import DashboardFinanciero from './modules/finanzas/DashboardFinanciero'
+import Academias from './modules/horarios-fijos/Academias'
+import Inventario from './modules/inventario/Inventario'
 
-function PanelConLogin() {
+function PanelConLogin({ children }) {
   const { autenticado } = useAuth()
-
-  if (!autenticado) {
-    return <Login />
-  }
-
-  return (
-    <PanelLayout>
-      <PanelDisponibilidad />
-    </PanelLayout>
-  )
-}
-
-function DashboardConLogin() {
-  const { autenticado } = useAuth()
-
-  if (!autenticado) {
-    return <Login />
-  }
-
-  return (
-    <PanelLayout>
-      <DashboardFinanciero />
-    </PanelLayout>
-  )
-}
-
-function AcademiasConLogin() {
-  const { autenticado } = useAuth()
-
-  if (!autenticado) {
-    return <Login />
-  }
-
-  return (
-    <PanelLayout>
-      <Academias />
-    </PanelLayout>
-  )
-}
-
-function InventarioConLogin() {
-  const { autenticado } = useAuth()
-
-  if (!autenticado) {
-    return <Login />
-  }
-
-  return (
-    <PanelLayout>
-      <Inventario />
-    </PanelLayout>
-  )
+  return autenticado ? <PanelLayout>{children}</PanelLayout> : <Login />
 }
 
 function App() {
@@ -72,10 +21,10 @@ function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/horarios" element={<HorariosPublicos />} />
-            <Route path="/dashboard" element={<DashboardConLogin />} />
-            <Route path="/horarios-fijos" element={<AcademiasConLogin />} />
-            <Route path="/inventario" element={<InventarioConLogin />} />
-            <Route path="/" element={<PanelConLogin />} />
+            <Route path="/dashboard" element={<PanelConLogin key="DashboardFinanciero"><DashboardFinanciero /></PanelConLogin>} />
+            <Route path="/horarios-fijos" element={<PanelConLogin key="Academias"><Academias /></PanelConLogin>} />
+            <Route path="/inventario" element={<PanelConLogin key="Inventario"><Inventario /></PanelConLogin>} />
+            <Route path="/" element={<PanelConLogin key="PanelDisponibilidad"><PanelDisponibilidad /></PanelConLogin>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>

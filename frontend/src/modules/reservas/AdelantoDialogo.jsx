@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { Banknote, Smartphone } from 'lucide-react'
-import { apiFetch } from '../api'
-import { OPCIONES_DURACION, calcularHoraFin, etiquetaDuracion } from '../utils/duracion'
-import { formatearFecha, generarOpcionesHora } from '../utils/fecha'
-import { Button } from './ui/button'
-import CalendarioPopover from './CalendarioPopover'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
-import { Input } from './ui/input'
+import { apiFetch } from '../../api'
+import { OPCIONES_DURACION, calcularHoraFin, etiquetaDuracion } from '../../utils/duracion'
+import { formatearFecha, generarOpcionesHora } from '../../utils/fecha'
+import { Button } from '../../components/ui/button'
+import CalendarioPopover from '../../components/CalendarioPopover'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog'
+import { Input } from '../../components/ui/input'
 
 const HORAS = generarOpcionesHora()
 

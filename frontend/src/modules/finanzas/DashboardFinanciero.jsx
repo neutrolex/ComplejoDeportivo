@@ -3,8 +3,8 @@ import {
   Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts'
 import { Banknote, Calendar, CalendarDays, Clock, Smartphone, TrendingUp } from 'lucide-react'
-import { apiFetch } from '../api'
-import { useTheme } from '../context/ThemeContext'
+import { apiFetch } from '../../api'
+import { useTheme } from '../../context/ThemeContext'
 
 const COLOR_YAPE = '#7c3aed'
 const COLOR_EFECTIVO = '#059669'

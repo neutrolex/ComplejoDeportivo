@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Building2, MessageSquare, Pencil, Plus, Trash2, Wallet } from 'lucide-react'
-import { apiFetch } from '../api'
-import { Badge } from './ui/badge'
-import { Button } from './ui/button'
-import AdelantoDialogo from './AdelantoDialogo'
+import { apiFetch } from '../../api'
+import { Badge } from '../../components/ui/badge'
+import { Button } from '../../components/ui/button'
+import AdelantoDialogo from '../reservas/AdelantoDialogo'
 import ComentarioDialogo from './ComentarioDialogo'
-import ConfirmDialogo from './ConfirmDialogo'
-import PagoAcademiaDialogo from './PagoAcademiaDialogo'
+import ConfirmDialogo from '../../components/ConfirmDialogo'
+import PagoAcademiaDialogo from '../horarios-fijos/PagoAcademiaDialogo'
 
 export default function ComentariosDia({ fecha, canchas, academias, onAdelantoCreado, onPagoAcademia, onCambio }) {
   const [comentarios, setComentarios] = useState([])

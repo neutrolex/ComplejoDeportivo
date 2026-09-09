@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { LayoutGrid, Plus, Trash2 } from 'lucide-react'
-import { apiFetch } from '../api'
-import { generarOpcionesHora, NOMBRES_DIA } from '../utils/fecha'
-import { PALETA_COLORES } from '../utils/paletaColores'
-import { Button } from './ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
-import { Input } from './ui/input'
+import { apiFetch } from '../../api'
+import { generarOpcionesHora, NOMBRES_DIA } from '../../utils/fecha'
+import { PALETA_COLORES } from '../../utils/paletaColores'
+import { Button } from '../../components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog'
+import { Input } from '../../components/ui/input'
 
 const HORAS = generarOpcionesHora()
 // El complejo atiende de 08:00 a 00:00 (asi estan cargadas las tarifas); un
